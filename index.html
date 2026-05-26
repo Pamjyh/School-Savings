@@ -309,9 +309,11 @@ body{font-family:'Sarabun',sans-serif;background:var(--surf);min-height:100vh;co
       <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--muted);font-weight:400"></span></span>
       <span style="font-size:12px;color:var(--muted)">คลิกเลือกก่อนฝาก/ถอน</span>
     </div>
-    <div style="max-height:60vh;overflow-y:auto;border-radius:12px">
+    <div style="border-radius:12px">
     <div class="sl-list" id="stu-list"></div>
     </div>
+    <!-- Pagination -->
+    <div id="stu-pagination" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
     <div style="margin-top:16px">
       <div class="st"><span>ประวัติล่าสุด</span></div>
       <div class="txl" id="tx-grade"></div>
@@ -607,7 +609,7 @@ function renderGrades() {
 }
 
 function pickGrade(g) {
-  curGrade = g; selStu = null;
+  curGrade = g; selStu = null; stuPage = 0;
   document.getElementById('stu-title').textContent = ICONS[g] + ' ชั้น' + g;
   document.getElementById('bulk-title').textContent = '📋 ฝากรวม ชั้น' + g;
   go('students');
@@ -628,14 +630,31 @@ function loadStus(force) {
   });
 }
 
+var stuPage = 0;
+var PAGE_SIZE = 20;
+
 function renderStus() {
   var el = document.getElementById('stu-list');
+  var pgEl = document.getElementById('stu-pagination');
+  var totalPages = Math.ceil(stus.length / PAGE_SIZE);
+
+  // ตรวจ page ไม่เกิน
+  if (stuPage >= totalPages && totalPages > 0) stuPage = totalPages - 1;
+  if (stuPage < 0) stuPage = 0;
+
   document.getElementById('stu-cnt').textContent = '(' + stus.length + ' คน)';
+
   if (!stus.length) {
     el.innerHTML = '<div class="empty"><div style="font-size:36px;margin-bottom:8px">👥</div><p>ยังไม่มีนักเรียน<br>กด "เพิ่ม" เพื่อเริ่มต้น</p></div>';
+    pgEl.style.display = 'none';
     return;
   }
-  el.innerHTML = stus.map(function(s) {
+
+  // slice เฉพาะหน้านี้
+  var start = stuPage * PAGE_SIZE;
+  var pageStus = stus.slice(start, start + PAGE_SIZE);
+
+  el.innerHTML = pageStus.map(function(s) {
     var sel = selStu && selStu.id === s.id ? ' sel' : '';
     var balColor = s.balance >= 0 ? 'var(--green)' : 'var(--red)';
     return '<div class="scard' + sel + '" onclick="pickStu(\'' + s.id + '\')">' +
@@ -648,6 +667,42 @@ function renderStus() {
       '<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\'' + s.id + '\',\'' + esc(s.name) + '\',' + s.balance + ')">🗑️</button>' +
       '</div>';
   }).join('');
+
+  // Pagination bar
+  if (totalPages <= 1) {
+    pgEl.style.display = 'none';
+    return;
+  }
+
+  pgEl.style.display = 'flex';
+  var pgHtml = '';
+
+  // ปุ่มก่อนหน้า
+  pgHtml += '<button onclick="changeStuPage(' + (stuPage-1) + ')" ' +
+    (stuPage === 0 ? 'disabled' : '') +
+    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--bdr);background:' +
+    (stuPage === 0 ? '#F5F5F4' : '#fff') + ';cursor:' +
+    (stuPage === 0 ? 'default' : 'pointer') + ';color:' +
+    (stuPage === 0 ? 'var(--muted)' : 'var(--dark)') + ';font-size:14px">← ก่อนหน้า</button>';
+
+  // เลขหน้า
+  pgHtml += '<span style="font-size:13px;color:var(--muted);padding:0 4px">หน้า ' + (stuPage+1) + ' / ' + totalPages + ' (' + stus.length + ' คน)</span>';
+
+  // ปุ่มถัดไป
+  pgHtml += '<button onclick="changeStuPage(' + (stuPage+1) + ')" ' +
+    (stuPage >= totalPages-1 ? 'disabled' : '') +
+    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--bdr);background:' +
+    (stuPage >= totalPages-1 ? '#F5F5F4' : 'var(--dark)') + ';cursor:' +
+    (stuPage >= totalPages-1 ? 'default' : 'pointer') + ';color:' +
+    (stuPage >= totalPages-1 ? 'var(--muted)' : '#fff') + ';font-size:14px">ถัดไป →</button>';
+
+  pgEl.innerHTML = pgHtml;
+}
+
+function changeStuPage(page) {
+  stuPage = page;
+  renderStus();
+  window.scrollTo(0, 0);
 }
 
 function renderStats() {
