@@ -309,7 +309,9 @@ body{font-family:'Sarabun',sans-serif;background:var(--surf);min-height:100vh;co
       <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--muted);font-weight:400"></span></span>
       <span style="font-size:12px;color:var(--muted)">คลิกเลือกก่อนฝาก/ถอน</span>
     </div>
+    <div style="max-height:60vh;overflow-y:auto;border-radius:12px">
     <div class="sl-list" id="stu-list"></div>
+    </div>
     <div style="margin-top:16px">
       <div class="st"><span>ประวัติล่าสุด</span></div>
       <div class="txl" id="tx-grade"></div>
@@ -615,9 +617,9 @@ function pickGrade(g) {
 
 // ===== STUDENTS =====
 function loadStus(force) {
-  if (force) delete cache[curGrade];
+  // โหลดใหม่เสมอ ไม่ใช้ cache (เพื่อให้ครบทุกครั้ง)
+  delete cache[curGrade];
   document.getElementById('stu-list').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
-  if (cache[curGrade]) { stus = cache[curGrade]; renderStus(); renderStats(); return; }
   apiCall({ action: 'getStudents', grade: curGrade }, function(r) {
     if (!r.ok) { toast(r.error, 'err'); return; }
     cache[curGrade] = r.students || [];
