@@ -446,7 +446,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--surf);min-height:100vh;co
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbzeHaUvO66GT1Avim4YcRABXnY9wIdJsHyreE1FEqP_y2Ya_SoT9R9NvQNRP42K-JBZtQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycby0ONHRgPSrZ_8d7w_5fYoc0zm_qJEjDGtxqQpjdy-S9H1D1K3abBiU96t47BOwjZ5SCw/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -850,32 +850,52 @@ function openAdd() {
 function confirmAdd() {
   var oneName = document.getElementById('add-one').value.trim();
   var bank = document.getElementById('add-bank').value.trim();
-  var bulk = document.getElementById('add-names').value.split('\n').map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
-  var items = oneName ? [{ name: oneName, bank: bank }] : bulk.map(function(n) { return { name: n, bank: '' }; });
+  var bulk = document.getElementById('add-names').value.split('\n')
+    .map(function(n) { return n.trim(); })
+    .filter(function(n) { return n.length > 0; });
+  var items = oneName
+    ? [{ name: oneName, bank: bank }]
+    : bulk.map(function(n) { return { name: n, bank: '' }; });
   if (!items.length) { showErr('add', 'กรุณาใส่ชื่ออย่างน้อย 1 คน'); return; }
+
   var btn = document.getElementById('add-btn');
-  btn.textContent = '⏳...'; btn.disabled = true;
-  var done = 0, ok = 0, fail = [];
-  items.forEach(function(item) {
-    apiCall({ action: 'addStudent', name: item.name, bankAccount: item.bank, grade: curGrade, password: TPW }, function(r) {
-      done++;
-      if (r.ok) ok++; else fail.push(item.name);
-      if (done === items.length) {
-        btn.textContent = '➕ เพิ่ม'; btn.disabled = false;
-        if (!fail.length) {
-          showOk('add', '✓ เพิ่มสำเร็จ ' + ok + ' คน');
-          document.getElementById('add-names').value = '';
-          document.getElementById('add-one').value = '';
-          document.getElementById('add-bank').value = '';
-          loadStus(true);
-          setTimeout(function() { closeMo('add'); }, 1500);
-        } else {
-          showErr('add', 'สำเร็จ ' + ok + ' · ล้มเหลว: ' + fail.join(', '));
-          loadStus(true);
-        }
+  btn.disabled = true;
+
+  // ส่งทีละคน sequential ไม่ใช่ parallel
+  var ok = 0, fail = [];
+  function sendNext(i) {
+    if (i >= items.length) {
+      // เสร็จหมดแล้ว
+      btn.textContent = '➕ เพิ่ม'; btn.disabled = false;
+      if (!fail.length) {
+        showOk('add', '✓ เพิ่มสำเร็จ ' + ok + ' คน ตามลำดับที่พิมพ์');
+        document.getElementById('add-names').value = '';
+        document.getElementById('add-one').value = '';
+        document.getElementById('add-bank').value = '';
+        loadStus(true);
+        setTimeout(function() { closeMo('add'); }, 1500);
+      } else {
+        showErr('add', 'สำเร็จ ' + ok + ' · ล้มเหลว: ' + fail.join(', '));
+        loadStus(true);
       }
+      return;
+    }
+    btn.textContent = '⏳ ' + (i+1) + '/' + items.length + '...';
+    var item = items[i];
+    // ส่ง order index ไปด้วย เพื่อให้ id เรียงตามลำดับ
+    apiCall({
+      action: 'addStudent',
+      name: item.name,
+      bankAccount: item.bank,
+      grade: curGrade,
+      password: TPW
+    }, function(r) {
+      if (r.ok) ok++; else fail.push(item.name);
+      // รอ 300ms ก่อนส่งคนถัดไป ป้องกัน Apps Script หนัก
+      setTimeout(function() { sendNext(i + 1); }, 300);
     });
-  });
+  }
+  sendNext(0);
 }
 
 // ===== EDIT STUDENT =====
