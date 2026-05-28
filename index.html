@@ -193,15 +193,15 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
   </div>
   <div class="body">
     <!-- ค้นหา -->
-    <div style="background:#fff;border-radius:14px;border:1px solid var(--bdr);padding:1.25rem;margin-bottom:16px">
+    <div style="background:#fff;border-radius:14px;border:1px solid var(--ibdr);padding:1.25rem;margin-bottom:16px">
       <div style="font-family:'Mitr',sans-serif;font-size:15px;margin-bottom:4px">🔍 ค้นหาด้วยชื่อ-สกุลบุตรหลาน</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">พิมพ์ชื่อหรือนามสกุล ไม่ต้องครบก็ได้</div>
+      <div style="font-size:13px;color:var(--ts);margin-bottom:14px">พิมพ์ชื่อหรือนามสกุล ไม่ต้องครบก็ได้</div>
       <div style="display:flex;gap:8px">
         <input class="finp" id="parent-search" placeholder="เช่น สมชาย หรือ ใจดี"
           style="margin-bottom:0;flex:1"
           onkeydown="if(event.key==='Enter')searchParent()">
         <button onclick="searchParent()"
-          style="padding:10px 18px;border-radius:10px;border:none;background:var(--dark);color:#fff;font-size:14px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;white-space:nowrap">
+          style="padding:10px 18px;border-radius:10px;border:none;background:var(--hg);color:#fff;font-size:14px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;white-space:nowrap">
           ค้นหา
         </button>
       </div>
@@ -212,27 +212,27 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div id="parent-result" style="display:none">
       <!-- กรณีเจอหลายคน -->
       <div id="parent-multi" style="display:none">
-        <div style="font-family:'Mitr',sans-serif;font-size:14px;margin-bottom:10px;color:var(--gray)">พบนักเรียนหลายคน กรุณาเลือก:</div>
+        <div style="font-family:'Mitr',sans-serif;font-size:14px;margin-bottom:10px;color:var(--ts)">พบนักเรียนหลายคน กรุณาเลือก:</div>
         <div id="parent-multi-list" class="sl-list"></div>
       </div>
 
       <!-- กรณีเจอคนเดียว / เลือกแล้ว -->
       <div id="parent-single" style="display:none">
         <!-- card ยอดรวม -->
-        <div style="background:var(--dark);border-radius:16px;padding:1.5rem;text-align:center;margin-bottom:14px">
-          <div style="font-size:13px;color:var(--muted);margin-bottom:4px" id="ps-name"></div>
-          <div style="font-family:'Mitr',sans-serif;font-size:14px;color:var(--muted);margin-bottom:8px" id="ps-grade"></div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:4px">ยอดออมสะสม</div>
-          <div style="font-family:'Mitr',sans-serif;font-size:38px;font-weight:700;color:#FAFAF8" id="ps-balance"></div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">บาท</div>
+        <div style="background:var(--hg);border-radius:var(--cr);padding:2rem 1.5rem;text-align:center;margin-bottom:14px;box-shadow:var(--cs)">
+          <div style="font-size:12px;color:var(--tws);margin-bottom:4px;letter-spacing:0.08em;text-transform:uppercase" id="ps-name"></div>
+          <div style="font-family:'Mitr',sans-serif;font-size:13px;color:var(--gl);margin-bottom:1.5rem;letter-spacing:0.05em" id="ps-grade"></div>
+          <div style="font-size:12px;color:var(--tws);margin-bottom:8px;letter-spacing:0.05em;text-transform:uppercase">ยอดออมสะสม</div>
+          <div style="font-family:'Mitr',sans-serif;font-size:52px;font-weight:700;color:var(--tw);letter-spacing:-0.01em;line-height:1" id="ps-balance"></div>
+          <div style="font-size:16px;color:var(--tws);margin-top:8px">บาท</div>
         </div>
 
         <!-- ประวัติ -->
-        <div style="font-family:'Mitr',sans-serif;font-size:15px;margin-bottom:10px">📋 ประวัติการฝาก-ถอน</div>
+        <div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;letter-spacing:-0.01em">📋 ประวัติการฝาก-ถอน</div>
         <div class="txl" id="parent-history"></div>
 
         <button onclick="resetParent()"
-          style="width:100%;margin-top:16px;padding:11px;border-radius:10px;border:1px solid var(--bdr);background:transparent;color:var(--gray);font-size:14px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          style="width:100%;margin-top:16px;padding:12px;border-radius:var(--br);border:1.5px solid var(--ibdr);background:var(--white);color:var(--ts);font-size:14px;cursor:pointer;font-family:'Sarabun',sans-serif;transition:all 0.2s;letter-spacing:-0.01em">
           🔍 ค้นหาใหม่
         </button>
       </div>
@@ -276,8 +276,8 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
       <button class="ab ab-add" onclick="openAdd()">➕ เพิ่ม</button>
     </div>
     <div class="st">
-      <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--muted);font-weight:400"></span></span>
-      <span style="font-size:12px;color:var(--muted)">คลิกเลือกก่อนฝาก/ถอน</span>
+      <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
+      <span style="font-size:12px;color:var(--ts)">คลิกเลือกก่อนฝาก/ถอน</span>
     </div>
     <div style="max-height:55vh;overflow-y:auto;border-radius:12px;-webkit-overflow-scrolling:touch">
     <div class="sl-list" id="stu-list"></div>
@@ -302,7 +302,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
   </div>
   <div class="body">
     <div class="bsum" id="bsum"></div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:10px">กรอกยอดเฉพาะคนที่ฝากวันนี้ ช่องว่างจะข้ามไป</p>
+    <p style="font-size:13px;color:var(--ts);margin-bottom:10px">กรอกยอดเฉพาะคนที่ฝากวันนี้ ช่องว่างจะข้ามไป</p>
     <table class="btbl">
       <thead><tr><th>ชื่อ-สกุล</th><th>ยอดคงเหลือ</th><th>ฝากวันนี้ (฿)</th></tr></thead>
       <tbody id="bulk-body"></tbody>
@@ -353,7 +353,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <textarea class="minp" id="add-names" rows="4"
       placeholder="พิมพ์ชื่อ-สกุล ทีละบรรทัด (เพิ่มทีละหลายคน)"
       style="resize:vertical;line-height:1.7;font-size:14px"></textarea>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">— หรือเพิ่มทีละคนพร้อมเลขบัญชี —</div>
+    <div style="font-size:12px;color:var(--ts);margin-bottom:10px">— หรือเพิ่มทีละคนพร้อมเลขบัญชี —</div>
     <input class="minp" id="add-one" placeholder="ชื่อ-สกุล (ทีละคน)">
     <input class="minp" id="add-bank" placeholder="เลขบัญชี ธกส. (ถ้ามี)">
     <div class="mbtns">
@@ -415,7 +415,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbxDjpKTCkCiNf6hv6Gbrk635uw1bkSPJjMA3CYFpe9ZWxvyz-wmYK58IKINgTtBPHAl9w/exec';
+var API = 'https://script.google.com/macros/s/AKfycbz0WUET21skHiZrfI0qnfqJoMG2GpenJ4k7AjybQ_y13TKwK4qan7bSkGtF596NAy-QYw/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -498,7 +498,7 @@ function showParentSingle(stu, history) {
 
   var histEl = document.getElementById('parent-history');
   if (!history || !history.length) {
-    histEl.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>';
+    histEl.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>';
     return;
   }
   histEl.innerHTML = history.map(function(t) {
@@ -651,21 +651,21 @@ function renderStus() {
   // ปุ่มก่อนหน้า
   pgHtml += '<button onclick="changeStuPage(' + (stuPage-1) + ')" ' +
     (stuPage === 0 ? 'disabled' : '') +
-    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--bdr);background:' +
+    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--ibdr);background:' +
     (stuPage === 0 ? '#F5F5F4' : '#fff') + ';cursor:' +
     (stuPage === 0 ? 'default' : 'pointer') + ';color:' +
-    (stuPage === 0 ? 'var(--muted)' : 'var(--dark)') + ';font-size:14px">← ก่อนหน้า</button>';
+    (stuPage === 0 ? 'var(--ts)' : 'var(--hg)') + ';font-size:14px">← ก่อนหน้า</button>';
 
   // เลขหน้า
-  pgHtml += '<span style="font-size:13px;color:var(--muted);padding:0 4px">หน้า ' + (stuPage+1) + ' / ' + totalPages + ' (' + stus.length + ' คน)</span>';
+  pgHtml += '<span style="font-size:13px;color:var(--ts);padding:0 4px">หน้า ' + (stuPage+1) + ' / ' + totalPages + ' (' + stus.length + ' คน)</span>';
 
   // ปุ่มถัดไป
   pgHtml += '<button onclick="changeStuPage(' + (stuPage+1) + ')" ' +
     (stuPage >= totalPages-1 ? 'disabled' : '') +
-    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--bdr);background:' +
-    (stuPage >= totalPages-1 ? '#F5F5F4' : 'var(--dark)') + ';cursor:' +
+    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--ibdr);background:' +
+    (stuPage >= totalPages-1 ? '#F5F5F4' : 'var(--hg)') + ';cursor:' +
     (stuPage >= totalPages-1 ? 'default' : 'pointer') + ';color:' +
-    (stuPage >= totalPages-1 ? 'var(--muted)' : '#fff') + ';font-size:14px">ถัดไป →</button>';
+    (stuPage >= totalPages-1 ? 'var(--ts)' : '#fff') + ';font-size:14px">ถัดไป →</button>';
 
   pgEl.innerHTML = pgHtml;
 }
@@ -682,7 +682,7 @@ function renderStats() {
   document.getElementById('stu-stats').innerHTML =
     '<div class="sc"><div class="sv" style="color:var(--green)">' + fmt(total) + '</div><div class="sl">ยอดรวม (฿)</div></div>' +
     '<div class="sc"><div class="sv">' + stus.length + '</div><div class="sl">นักเรียน</div></div>' +
-    '<div class="sc"><div class="sv" style="color:var(--amber)">' + fmt(avg) + '</div><div class="sl">เฉลี่ย (฿)</div></div>';
+    '<div class="sc"><div class="sv" style="color:var(--gold)">' + fmt(avg) + '</div><div class="sl">เฉลี่ย (฿)</div></div>';
 }
 
 function pickStu(id) {
@@ -701,7 +701,7 @@ function loadGradeTx() {
 function renderTxList(id, txs) {
   var el = document.getElementById(id);
   if (!txs || !txs.length) {
-    el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
+    el.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
     return;
   }
   el.innerHTML = txs.map(function(t) {
@@ -971,7 +971,7 @@ function renderAdTab(tab) {
 
 function renderOv(c) {
   if (!adData) { c.innerHTML = '<div class="load">⏳...</div>'; return; }
-  var html = '<div class="grand"><div style="font-size:12px;color:var(--muted);margin-bottom:4px;font-family:\'Mitr\',sans-serif">ยอดออมรวมทั้งโรงเรียน</div>' +
+  var html = '<div class="grand"><div style="font-size:12px;color:var(--ts);margin-bottom:4px;font-family:\'Mitr\',sans-serif">ยอดออมรวมทั้งโรงเรียน</div>' +
     '<div class="gv">' + fmt(adData.grandTotal) + ' บาท</div>' +
     '<div class="gs">นักเรียน ' + adData.totalStudents + ' คน · ' + GRADES.length + ' ชั้นเรียน</div></div>';
   GRADES.forEach(function(g) {
@@ -984,7 +984,7 @@ function renderOv(c) {
       (d.students.length ? d.students.map(function(s) {
         return '<div class="ovr"><span>' + esc(s.name) + '</span>' +
           '<span style="font-weight:600;color:' + (s.balance >= 0 ? 'var(--green)' : 'var(--red)') + '">' + fmt(s.balance) + ' ฿</span></div>';
-      }).join('') : '<div style="color:var(--muted);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>') +
+      }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>') +
       '</div></div>';
   });
   c.innerHTML = html;
@@ -1082,9 +1082,9 @@ function renderGd(c) {
     }
     var tot = r.students.reduce(function(s,x) { return s+x.balance; }, 0);
     c.innerHTML = '<div style="background:var(--pbg);border-radius:12px;padding:1rem;text-align:center;margin-bottom:14px;border:1px solid var(--plt)">' +
-      '<div style="font-size:12px;color:var(--purple);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>' +
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--purple)">' + fmt(tot) + ' บาท</div>' +
-      '<div style="font-size:12px;color:var(--muted)">' + r.students.length + ' คน</div></div>' +
+      '<div style="font-size:12px;color:var(--sbux);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>' +
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--sbux)">' + fmt(tot) + ' บาท</div>' +
+      '<div style="font-size:12px;color:var(--ts)">' + r.students.length + ' คน</div></div>' +
       r.students.map(function(s) {
         return '<div class="grdc"><div><div class="grdn">' + esc(s.name) + '</div>' +
           '<div class="grdm">เข้าปี ' + (s.entryYear||'-') + (s.bankAccount ? ' · ' + esc(s.bankAccount) : '') + '</div></div>' +
