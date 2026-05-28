@@ -107,7 +107,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .ovbd{display:none;padding:8px 14px;border-top:1px solid var(--gl)}.ovbd.on{display:block}
 .ovr{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--ceramic);font-size:13px}.ovr:last-child{border-bottom:none}
 
-.atabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--hg);border-top:1px solid var(--gu);flex-shrink:0}
+.atabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--hg);border-top:1px solid var(--gu);flex-shrink:0}
 .atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:10px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-top:2px solid transparent}
 .atab.on{color:var(--tw);border-top-color:var(--ga)}.atab:hover{color:var(--tw)}
 
@@ -324,7 +324,6 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
   <div class="atabs">
     <button class="atab on" id="at-ov" onclick="adTab('ov')">📊<br>ภาพรวม</button>
     <button class="atab" id="at-tx" onclick="adTab('tx')">📋<br>ธุรกรรม</button>
-    <button class="atab" id="at-ex" onclick="adTab('ex')">📥<br>สรุปยอด</button>
     <button class="atab" id="at-pr" onclick="adTab('pr')">🎓<br>เลื่อนชั้น</button>
     <button class="atab" id="at-gd" onclick="adTab('gd')">🏅<br>จบแล้ว</button>
   </div>
@@ -416,7 +415,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycby0ONHRgPSrZ_8d7w_5fYoc0zm_qJEjDGtxqQpjdy-S9H1D1K3abBiU96t47BOwjZ5SCw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxDjpKTCkCiNf6hv6Gbrk635uw1bkSPJjMA3CYFpe9ZWxvyz-wmYK58IKINgTtBPHAl9w/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -956,7 +955,7 @@ function loadAdmin() {
 
 function adTab(tab) {
   curAdTab = tab;
-  ['ov','tx','ex','pr','gd'].forEach(function(t) {
+  ['ov','tx','pr','gd'].forEach(function(t) {
     document.getElementById('at-' + t).classList.toggle('on', t === tab);
   });
   renderAdTab(tab);
@@ -966,7 +965,6 @@ function renderAdTab(tab) {
   var c = document.getElementById('admin-body');
   if (tab === 'ov') renderOv(c);
   else if (tab === 'tx') renderAdTx(c);
-  else if (tab === 'ex') renderEx(c);
   else if (tab === 'pr') renderPr(c);
   else if (tab === 'gd') renderGd(c);
 }
@@ -1017,7 +1015,7 @@ function renderEx(c) {
     '<div><label class="flbl">ปี (พ.ศ.)</label><input type="number" class="finp" id="xmoy" value="' + yr + '" style="margin-bottom:0"></div></div>' +
     '<label class="flbl">ชั้นเรียน</label><select class="finp" id="xmog">' + grSel + '</select>' +
     '<div class="fok" id="xmo-ok"></div><div class="ferr" id="xmo-err"></div>' +
-    '<button class="abtn" style="background:var(--blue)" onclick="doExpMo()">📥 สร้างรายงานรายเดือน</button></div>' +
+    '<button class="abtn" style="background:var(--hg)" onclick="doExpMo()">📥 สร้างรายงานรายเดือน</button></div>' +
     '<div class="ic"><div class="ic-t">📚 สรุปรายภาคเรียน</div>' +
     '<div class="ic-d">ยอดสะสมตลอดเทอม แยกรายเดือน พร้อมเลขบัญชี ธกส.<br>เทอม 1 = พ.ค.–ก.ย. · เทอม 2 = พ.ย.–มี.ค.</div>' +
     '<div class="fgrid"><div><label class="flbl">ภาคเรียน</label><select class="finp" id="xtm" style="margin-bottom:0">' +
@@ -1026,7 +1024,7 @@ function renderEx(c) {
     '<div><label class="flbl">ปีการศึกษา (พ.ศ.)</label><input type="number" class="finp" id="xtmy" value="' + yr + '" style="margin-bottom:0"></div></div>' +
     '<label class="flbl">ชั้นเรียน</label><select class="finp" id="xtmg">' + grSel + '</select>' +
     '<div class="fok" id="xtm-ok"></div><div class="ferr" id="xtm-err"></div>' +
-    '<button class="abtn" style="background:var(--purple)" onclick="doExpTm()">📥 สร้างรายงานรายเทอม</button></div>';
+    '<button class="abtn" style="background:var(--ga)" onclick="doExpTm()">📥 สร้างรายงานรายเทอม</button></div>';
 }
 
 function doExpMo() {
@@ -1040,7 +1038,7 @@ function doExpMo() {
   apiCall({ action:'exportMonthly', month:mo, year:yr, grade:gr, password:APW }, function(r) {
     btn.textContent='📥 สร้างรายงานรายเดือน'; btn.disabled=false;
     if (!r.ok) { err.textContent=r.error; err.style.display='block'; return; }
-    ok.innerHTML='✓ สร้างสำเร็จ! ' + r.studentCount + ' คน · ฝาก ' + fmt(r.totalDeposit) + ' ถอน ' + fmt(r.totalWithdraw) + ' บาท<br><a href="' + r.url + '" target="_blank" style="color:var(--green);font-weight:600">→ เปิด Google Sheets</a>';
+    ok.innerHTML='✓ สร้างสำเร็จ! ' + r.studentCount + ' คน · ฝาก ' + fmt(r.totalDeposit) + ' ถอน ' + fmt(r.totalWithdraw) + ' บาท<br><a href="' + r.url + '" target="_blank" style="color:var(--sbux);font-weight:600">→ เปิด Google Sheets</a>';
     ok.style.display='block';
   });
 }
@@ -1056,7 +1054,7 @@ function doExpTm() {
   apiCall({ action:'exportTerm', term:tm, year:yr, grade:gr, password:APW }, function(r) {
     btn.textContent='📥 สร้างรายงานรายเทอม'; btn.disabled=false;
     if (!r.ok) { err.textContent=r.error; err.style.display='block'; return; }
-    ok.innerHTML='✓ สร้างสำเร็จ! ' + r.studentCount + ' คน · ฝาก ' + fmt(r.totalDeposit) + ' ถอน ' + fmt(r.totalWithdraw) + ' บาท<br><a href="' + r.url + '" target="_blank" style="color:var(--purple);font-weight:600">→ เปิด Google Sheets</a>';
+    ok.innerHTML='✓ สร้างสำเร็จ! ' + r.studentCount + ' คน · ฝาก ' + fmt(r.totalDeposit) + ' ถอน ' + fmt(r.totalWithdraw) + ' บาท<br><a href="' + r.url + '" target="_blank" style="color:var(--ga);font-weight:600">→ เปิด Google Sheets</a>';
     ok.style.display='block';
   });
 }
@@ -1071,7 +1069,7 @@ function renderPr(c) {
     '<div class="pgrid">' + pgrid + '</div></div>' +
     '<div class="ic"><div class="ic-t">⚡ เลื่อนชั้นทั้งโรงเรียน</div>' +
     '<div class="ic-d">ใช้ตอนต้นปีการศึกษาใหม่ ทุกชั้นเลื่อนพร้อมกัน<br>นักเรียน ป.6 จะย้ายเป็น "จบการศึกษา" อัตโนมัติ</div>' +
-    '<button class="abtn" style="background:var(--amber)" onclick="askPrAll()">⚡ เลื่อนชั้นทั้งโรงเรียน (ต้นปีการศึกษาใหม่)</button></div>';
+    '<button class="abtn" style="background:var(--sbux)" onclick="askPrAll()">⚡ เลื่อนชั้นทั้งโรงเรียน (ต้นปีการศึกษาใหม่)</button></div>';
 }
 
 function renderGd(c) {
