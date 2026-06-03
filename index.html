@@ -275,18 +275,45 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
       <button class="ab ab-bulk" onclick="goBulk()">📋 ฝากรวม</button>
       <button class="ab ab-add" onclick="openAdd()">➕ เพิ่ม</button>
     </div>
-    <div class="st">
-      <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
-      <span style="font-size:12px;color:var(--ts)">คลิกเลือกก่อนฝาก/ถอน</span>
+    <!-- ช่องค้นหา -->
+    <div style="position:relative;margin-bottom:10px">
+      <input id="stu-search" type="text" placeholder="🔍 ค้นหาชื่อนักเรียน..."
+        oninput="filterStus(this.value)"
+        style="width:100%;padding:10px 14px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;background:var(--white);transition:border-color 0.2s;letter-spacing:-0.01em">
     </div>
-    <div style="max-height:55vh;overflow-y:auto;border-radius:12px;-webkit-overflow-scrolling:touch">
-    <div class="sl-list" id="stu-list"></div>
+
+    <!-- View Tabs: รายชื่อ / สรุปวันนี้ -->
+    <div style="display:flex;background:var(--ceramic);border-radius:var(--br);padding:3px;gap:2px;margin-bottom:14px">
+      <button id="vtab-list" onclick="switchStudentTab('list')"
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;background:var(--hg);color:#fff;transition:all 0.2s;letter-spacing:-0.01em">
+        👥 รายชื่อ
+      </button>
+      <button id="vtab-today" onclick="switchStudentTab('today')"
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:500;background:transparent;color:var(--ts);transition:all 0.2s;letter-spacing:-0.01em">
+        📅 สรุปวันนี้
+      </button>
     </div>
-    <!-- Pagination -->
-    <div id="stu-pagination" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
-    <div style="margin-top:16px">
-      <div class="st"><span>ประวัติล่าสุด</span></div>
-      <div class="txl" id="tx-grade"></div>
+
+    <!-- Tab: รายชื่อ -->
+    <div id="view-list">
+      <div class="st">
+        <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
+        <span style="font-size:12px;color:var(--ts)">คลิกเลือกก่อนฝาก/ถอน</span>
+      </div>
+      <div style="max-height:55vh;overflow-y:auto;border-radius:var(--cr);-webkit-overflow-scrolling:touch">
+        <div class="sl-list" id="stu-list"></div>
+      </div>
+      <div id="stu-pagination" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
+      <div style="margin-top:16px">
+        <div class="st"><span>ประวัติล่าสุด</span></div>
+        <div class="txl" id="tx-grade"></div>
+      </div>
+    </div>
+
+    <!-- Tab: สรุปวันนี้ -->
+    <div id="view-today" style="display:none">
+      <div id="today-content" class="load">⏳ กำลังโหลด...</div>
+    </div>
     </div>
   </div>
 </div>
@@ -415,7 +442,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbz0WUET21skHiZrfI0qnfqJoMG2GpenJ4k7AjybQ_y13TKwK4qan7bSkGtF596NAy-QYw/exec';
+var API = 'YOUR_APPS_SCRIPT_WEB_APP_URL';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -578,7 +605,8 @@ function renderGrades() {
 }
 
 function pickGrade(g) {
-  curGrade = g; selStu = null; stuPage = 0;
+  curGrade = g; selStu = null; stuPage = 0; curStudentTab = 'list';
+  switchStudentTab('list');
   document.getElementById('stu-title').textContent = ICONS[g] + ' ชั้น' + g;
   document.getElementById('bulk-title').textContent = '📋 ฝากรวม ชั้น' + g;
   go('students');
@@ -590,9 +618,12 @@ function pickGrade(g) {
 function loadStus(force) {
   delete cache[curGrade];
   document.getElementById('stu-list').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
+  var searchEl = document.getElementById('stu-search');
+  if (searchEl) searchEl.value = '';
   apiCall({ action: 'getStudents', grade: curGrade }, function(r) {
     if (!r.ok) { toast(r.error, 'err'); return; }
-    allStus = r.students || [];  // เก็บทุกคน
+    allStus = r.students || [];
+    filteredStus = allStus;
     cache[curGrade] = allStus;
     stus = allStus;
     stuPage = 0;
@@ -600,9 +631,135 @@ function loadStus(force) {
   });
 }
 
-var stuPage = 0;
-var PAGE_SIZE = 20;
-var allStus = []; // เก็บนักเรียนทุกคน ไม่ถูก slice
+var curStudentTab = 'list';
+
+function switchStudentTab(tab) {
+  curStudentTab = tab;
+  var isToday = tab === 'today';
+  document.getElementById('view-list').style.display    = isToday ? 'none' : 'block';
+  document.getElementById('view-today').style.display   = isToday ? 'block' : 'none';
+  // สไตล์ปุ่ม active
+  var btnList  = document.getElementById('vtab-list');
+  var btnToday = document.getElementById('vtab-today');
+  if (btnList && btnToday) {
+    btnList.style.background  = isToday ? 'transparent' : 'var(--hg)';
+    btnList.style.color       = isToday ? 'var(--ts)' : '#fff';
+    btnList.style.fontWeight  = isToday ? '500' : '600';
+    btnToday.style.background = isToday ? 'var(--hg)' : 'transparent';
+    btnToday.style.color      = isToday ? '#fff' : 'var(--ts)';
+    btnToday.style.fontWeight = isToday ? '600' : '500';
+  }
+  if (isToday) loadTodaySummary();
+}
+
+function loadTodaySummary() {
+  var el = document.getElementById('today-content');
+  el.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
+  apiCall({ action: 'getHistory', grade: curGrade, limit: 100 }, function(r) {
+    if (!r.ok) { el.innerHTML = '<div class="load">โหลดไม่ได้</div>'; return; }
+
+    // กรองเฉพาะวันนี้
+    var now = new Date();
+    var todayTxs = (r.transactions || []).filter(function(t) {
+      if (!t.date) return false;
+      // วันที่จาก Apps Script เช่น "28 พ.ค. 2569 13:30"
+      var MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      var todayStr = now.getDate() + ' ' + MONTHS[now.getMonth()] + ' ' + (now.getFullYear()+543);
+      return t.date.indexOf(todayStr) === 0;
+    });
+
+    if (!todayTxs.length) {
+      el.innerHTML =
+        '<div style="background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2.5rem 1rem;text-align:center;box-shadow:var(--cs)">' +
+        '<div style="font-size:36px;margin-bottom:8px">📭</div>' +
+        '<div style="font-size:15px;color:var(--ts)">วันนี้ยังไม่มีการฝาก-ถอน</div>' +
+        '<div style="font-size:13px;color:var(--ts);margin-top:4px">ชั้น ' + curGrade + '</div>' +
+        '</div>';
+      return;
+    }
+
+    // สรุปยอด
+    var totalDep = 0, totalWit = 0, depCount = 0, witCount = 0;
+    todayTxs.forEach(function(t) {
+      if (t.type === 'ฝาก') { totalDep += t.amount; depCount++; }
+      else { totalWit += t.amount; witCount++; }
+    });
+
+    // วันที่ภาษาไทย
+    var MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    var dateLabel = now.getDate() + ' ' + MONTHS_FULL[now.getMonth()] + ' ' + (now.getFullYear()+543);
+
+    var html =
+      // header card
+      '<div style="background:var(--hg);border-radius:var(--cr);padding:1.25rem;margin-bottom:14px;box-shadow:var(--cs)">' +
+      '<div style="font-size:11px;color:var(--tws);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">สรุปวันนี้ · ชั้น ' + curGrade + '</div>' +
+      '<div style="font-size:14px;color:var(--tw);font-weight:600;margin-bottom:12px">' + dateLabel + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">' +
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากวันนี้</div>' +
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:var(--gl)">' + fmt(totalDep) + ' ฿</div>' +
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">' + depCount + ' รายการ</div>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">' +
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💸 ถอนวันนี้</div>' +
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:#fca5a5">' + fmt(totalWit) + ' ฿</div>' +
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">' + witCount + ' รายการ</div>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+
+      // รายชื่อที่ฝากวันนี้
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;letter-spacing:-0.01em">' +
+      'รายชื่อที่ฝาก-ถอนวันนี้ (' + todayTxs.length + ' รายการ)</div>' +
+      '<div class="txl">';
+
+    todayTxs.forEach(function(t) {
+      var isD = t.type === 'ฝาก';
+      html +=
+        '<div class="txi">' +
+        '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
+        '<div class="txi-info">' +
+        '<div class="txn">' + esc(t.name) + '</div>' +
+        '<div class="txd">' + t.date + '</div></div>' +
+        '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + ' ฿</div>' +
+        '</div>';
+    });
+
+    html += '</div>';
+
+    // ยังไม่ได้ฝาก
+    var depositedIds = {};
+    todayTxs.filter(function(t){ return t.type==='ฝาก'; }).forEach(function(t){ depositedIds[t.studentId]=true; });
+    var notDeposited = allStus.filter(function(s){ return !depositedIds[s.id]; });
+    if (notDeposited.length > 0) {
+      html += '<div style="margin-top:16px">' +
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px;letter-spacing:-0.01em">' +
+        '⏳ ยังไม่ได้ฝากวันนี้ (' + notDeposited.length + ' คน)</div>' +
+        '<div style="display:flex;flex-direction:column;gap:4px">';
+      notDeposited.forEach(function(s) {
+        html += '<div style="background:var(--white);border-radius:10px;border:1px solid var(--ceramic);padding:9px 13px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--cs)">' +
+          '<span style="font-size:14px;color:var(--td)">' + esc(s.name) + '</span>' +
+          '<span style="font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux)">' + fmt(s.balance) + ' ฿</span>' +
+          '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    el.innerHTML = html;
+  });
+}
+
+
+
+function filterStus(keyword) {
+  var q = keyword.trim().toLowerCase();
+  filteredStus = q
+    ? allStus.filter(function(s) { return s.name.toLowerCase().includes(q); })
+    : allStus;
+  stuPage = 0;
+  stus = filteredStus;
+  renderStus();
+}
 
 function renderStus() {
   var el = document.getElementById('stu-list');
@@ -790,12 +947,53 @@ function openTx(mode) {
   document.getElementById('tx-title').textContent = isD ? '💰 บันทึกฝากเงิน' : '💸 บันทึกถอนเงิน';
   document.getElementById('tx-sub').textContent = selStu.name + ' · ยอดสะสม ' + fmt(selStu.balance) + ' บาท';
   document.getElementById('tx-amt').value = '';
+  document.getElementById('tx-amt').disabled = false;
+  document.getElementById('tx-amt').placeholder = isD
+    ? 'จำนวนเงินที่ฝาก (บาท)'
+    : 'จำนวนเงินที่ถอน (สูงสุด ' + fmt(selStu.balance) + ' บาท)';
   hide('tx-ok'); hide('tx-err');
+  var zone = document.getElementById('tx-confirm-zone');
+  if (zone) zone.style.display = 'none';
   var btn = document.getElementById('tx-confirm');
   btn.className = 'mbtn ' + (isD ? 'mbtn-g' : 'mbtn-r');
-  btn.textContent = isD ? '✓ ยืนยันฝาก' : '✓ ยืนยันถอน';
+  btn.textContent = isD ? '✓ ยืนยันฝาก' : 'ถัดไป →';
+  btn.onclick = isD ? confirmTx : previewWithdraw;
   openMo('tx');
   setTimeout(function() { document.getElementById('tx-amt').focus(); }, 100);
+}
+
+function previewWithdraw() {
+  var amt = parseFloat(document.getElementById('tx-amt').value);
+  if (!amt || amt <= 0) { showErr('tx', 'กรุณาใส่จำนวนเงิน'); return; }
+  if (amt > selStu.balance) {
+    showErr('tx', '⚠️ ยอดไม่พอ · มีแค่ ' + fmt(selStu.balance) + ' บาท');
+    return;
+  }
+  hide('tx-err');
+  var zone = document.getElementById('tx-confirm-zone');
+  if (!zone) {
+    zone = document.createElement('div');
+    zone.id = 'tx-confirm-zone';
+    document.getElementById('tx-amt').parentNode.insertBefore(zone, document.getElementById('tx-confirm').parentNode);
+  }
+  zone.style.display = 'block';
+  zone.innerHTML =
+    '<div style="background:var(--warm);border-radius:var(--cr);padding:12px 14px;margin-bottom:10px;border:1px solid var(--gl)">' +
+    '<div style="font-size:11px;color:var(--ts);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600">ยืนยันการถอนเงิน</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+    '<span style="font-size:13px;color:var(--ts)">นักเรียน</span>' +
+    '<span style="font-size:14px;font-weight:600;color:var(--td)">' + esc(selStu.name) + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+    '<span style="font-size:13px;color:var(--ts)">ถอนออก</span>' +
+    '<span style="font-size:14px;font-weight:700;color:var(--red)">- ' + fmt(amt) + ' บาท</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--ibdr)">' +
+    '<span style="font-size:13px;color:var(--ts)">ยอดคงเหลือหลังถอน</span>' +
+    '<span style="font-family:\'Mitr\',sans-serif;font-size:16px;font-weight:700;color:var(--sbux)">' + fmt(selStu.balance - amt) + ' บาท</span></div>' +
+    '</div>';
+  document.getElementById('tx-amt').disabled = true;
+  var btn = document.getElementById('tx-confirm');
+  btn.textContent = '✓ ยืนยันถอนเงิน';
+  btn.onclick = confirmTx;
 }
 
 function confirmTx() {
@@ -803,12 +1001,23 @@ function confirmTx() {
   if (!amt || amt <= 0) { showErr('tx', 'กรุณาใส่จำนวนเงิน'); return; }
   var action = txMode === 'dep' ? 'deposit' : 'withdraw';
   apiCall({ action: action, studentId: selStu.id, amount: amt, password: TPW }, function(r) {
-    if (!r.ok) { showErr('tx', r.error); return; }
+    if (!r.ok) {
+      document.getElementById('tx-amt').disabled = false;
+      var zone = document.getElementById('tx-confirm-zone');
+      if (zone) zone.style.display = 'none';
+      showErr('tx', r.error);
+      return;
+    }
     showOk('tx', '✓ ' + (txMode === 'dep' ? 'ฝาก' : 'ถอน') + ' ' + fmt(amt) + ' บาท · ยอดใหม่ ' + fmt(r.newBalance) + ' บาท');
-    var s = stus.filter(function(x) { return x.id === selStu.id; })[0];
+    var s = allStus.filter(function(x) { return x.id === selStu.id; })[0];
     if (s) { s.balance = r.newBalance; selStu.balance = r.newBalance; }
     renderStus(); renderStats(); loadGradeTx();
-    setTimeout(function() { closeMo('tx'); }, 1800);
+    setTimeout(function() {
+      closeMo('tx');
+      document.getElementById('tx-amt').disabled = false;
+      var zone = document.getElementById('tx-confirm-zone');
+      if (zone) zone.style.display = 'none';
+    }, 1800);
   });
 }
 
