@@ -282,15 +282,19 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
         style="width:100%;padding:10px 14px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;background:var(--white);transition:border-color 0.2s;letter-spacing:-0.01em">
     </div>
 
-    <!-- View Tabs: รายชื่อ / สรุปวันนี้ -->
+    <!-- View Tabs: รายชื่อ / สรุปวันนี้ / รายเดือน -->
     <div style="display:flex;background:var(--ceramic);border-radius:var(--br);padding:3px;gap:2px;margin-bottom:14px">
       <button id="vtab-list" onclick="switchStudentTab('list')"
-        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;background:var(--hg);color:#fff;transition:all 0.2s;letter-spacing:-0.01em">
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;background:var(--hg);color:#fff;transition:all 0.2s;letter-spacing:-0.01em">
         👥 รายชื่อ
       </button>
       <button id="vtab-today" onclick="switchStudentTab('today')"
-        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:500;background:transparent;color:var(--ts);transition:all 0.2s;letter-spacing:-0.01em">
-        📅 สรุปวันนี้
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:500;background:transparent;color:var(--ts);transition:all 0.2s;letter-spacing:-0.01em">
+        📅 วันนี้
+      </button>
+      <button id="vtab-month" onclick="switchStudentTab('month')"
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:500;background:transparent;color:var(--ts);transition:all 0.2s;letter-spacing:-0.01em">
+        📆 รายเดือน
       </button>
     </div>
 
@@ -313,6 +317,11 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <!-- Tab: สรุปวันนี้ -->
     <div id="view-today" style="display:none">
       <div id="today-content" class="load">⏳ กำลังโหลด...</div>
+    </div>
+
+    <!-- Tab: รายเดือน -->
+    <div id="view-month" style="display:none">
+      <div id="month-content"></div>
     </div>
     </div>
   </div>
@@ -442,7 +451,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbxatQ8_JFt7qe-hnADqEkfiCuTAkHAi6nA8iNz2FQ8l34QCdasalPwq52_F1zTFNmXg/exec';
+var API = 'https://script.google.com/macros/s/AKfycbyCzhz2yefu3l-jrDMtBgvmCpoLJ9eNAlzFnpLxukPExnT4QFGGRGLjQYQuMhWDrb2PKw/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -558,6 +567,7 @@ function renderGrades() {
 
 function pickGrade(g) {
   curGrade=g; selStu=null; stuPage=0; curStudentTab='list';
+  stuMonthSel=null; stuYearSel=null;
   document.getElementById('stu-title').textContent=ICONS[g]+' ชั้น'+g;
   document.getElementById('bulk-title').textContent='📋 ฝากรวม ชั้น'+g;
   go('students');
@@ -672,20 +682,154 @@ function renderTxList(id,txs) {
 }
 
 // ===== DAILY SUMMARY =====
+var stuMonthSel = null; // เดือนที่เลือกในโหมดครู
+var stuYearSel  = null;
+
 function switchStudentTab(tab) {
-  curStudentTab=tab;
-  var isT=tab==='today';
-  var vl=document.getElementById('view-list');
-  var vt=document.getElementById('view-today');
-  if(vl) vl.style.display=isT?'none':'block';
-  if(vt) vt.style.display=isT?'block':'none';
-  var bl=document.getElementById('vtab-list');
-  var bt=document.getElementById('vtab-today');
-  if(bl&&bt){
-    bl.style.background=isT?'transparent':'var(--hg)'; bl.style.color=isT?'var(--ts)':'#fff'; bl.style.fontWeight=isT?'500':'600';
-    bt.style.background=isT?'var(--hg)':'transparent'; bt.style.color=isT?'#fff':'var(--ts)'; bt.style.fontWeight=isT?'600':'500';
+  curStudentTab = tab;
+  var tabs = ['list','today','month'];
+  tabs.forEach(function(t) {
+    var btn = document.getElementById('vtab-'+t);
+    var view = document.getElementById('view-'+t);
+    var isActive = t === tab;
+    if (btn) {
+      btn.style.background  = isActive ? 'var(--hg)' : 'transparent';
+      btn.style.color       = isActive ? '#fff'       : 'var(--ts)';
+      btn.style.fontWeight  = isActive ? '600'        : '500';
+    }
+    if (view) view.style.display = isActive ? 'block' : 'none';
+  });
+  if (tab === 'today') loadTodaySummary();
+  if (tab === 'month') loadMonthSummary();
+}
+
+function loadMonthSummary() {
+  var now = new Date();
+  if (!stuMonthSel) stuMonthSel = MONTHS_SHORT[now.getMonth()];
+  if (!stuYearSel)  stuYearSel  = now.getFullYear() + 543;
+
+  var el = document.getElementById('month-content');
+
+  var monthOpts = MONTHS_SHORT.map(function(m,i){
+    return '<option value="'+m+'" '+(m===stuMonthSel?'selected':'')+'>'+MONTHS_FULL[i]+'</option>';
+  }).join('');
+  var yearOpts = '';
+  for (var y = stuYearSel; y >= stuYearSel-3; y--) {
+    yearOpts += '<option value="'+y+'" '+(y===stuYearSel?'selected':'')+'>'+y+'</option>';
   }
-  if(isT) loadTodaySummary();
+
+  el.innerHTML =
+    // filter
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+    '<select id="stu-month-sel" onchange="stuMonthSel=this.value;doLoadMonthData()"'+
+    ' style="flex:1;padding:9px 12px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    monthOpts+'</select>'+
+    '<select id="stu-year-sel" onchange="stuYearSel=parseInt(this.value);doLoadMonthData()"'+
+    ' style="width:95px;padding:9px 10px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    yearOpts+'</select>'+
+    '</div>'+
+    '<div id="month-summary-card" style="margin-bottom:14px"></div>'+
+    '<div id="month-table"><div class="load">⏳ กำลังโหลด...</div></div>';
+
+  doLoadMonthData();
+}
+
+function doLoadMonthData() {
+  var mEl = document.getElementById('month-table');
+  var sEl = document.getElementById('month-summary-card');
+  if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
+
+  apiCall({action:'getHistory', grade:curGrade, limit:500}, function(r) {
+    if (!r.ok) { if(mEl) mEl.innerHTML='<div class="load">โหลดไม่ได้</div>'; return; }
+
+    // กรองตามเดือน/ปีที่เลือก
+    var txs = (r.transactions||[]).filter(function(t){
+      return t.date && t.date.indexOf(stuMonthSel) >= 0 && t.date.indexOf(String(stuYearSel)) >= 0;
+    });
+
+    var monthName = MONTHS_FULL[MONTHS_SHORT.indexOf(stuMonthSel)] || stuMonthSel;
+    var totalDep = txs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit = txs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+    var depCnt   = txs.filter(function(t){return t.type==='ฝาก';}).length;
+
+    // summary card
+    if (sEl) {
+      sEl.innerHTML = txs.length > 0 ?
+        '<div style="background:var(--hg);border-radius:var(--cr);padding:1rem;box-shadow:var(--cs)">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em">'+monthName+' '+stuYearSel+' · ชั้น'+curGrade+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws)">'+depCnt+' รายการ</div></div>'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💸 ถอนรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:#fca5a5">'+fmt(totalWit)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws)">'+(txs.length-depCnt)+' รายการ</div></div>'+
+        '</div></div>'
+        : '';
+    }
+
+    if (!txs.length) {
+      if(mEl) mEl.innerHTML=
+        '<div style="text-align:center;background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2rem;box-shadow:var(--cs)">'+
+        '<div style="font-size:32px;margin-bottom:8px">📭</div>'+
+        '<div style="color:var(--ts)">ไม่พบข้อมูล'+monthName+' '+stuYearSel+'</div></div>';
+      return;
+    }
+
+    // รวมยอดต่อคน
+    var perPerson = {};
+    txs.forEach(function(t){
+      if(!perPerson[t.studentId]) perPerson[t.studentId]={name:t.name,dep:0,wit:0,count:0};
+      if(t.type==='ฝาก'){perPerson[t.studentId].dep+=t.amount; perPerson[t.studentId].count++;}
+      else perPerson[t.studentId].wit+=t.amount;
+    });
+
+    // เรียงตามชื่อ
+    var rows = Object.values(perPerson).sort(function(a,b){return a.name.localeCompare(b.name,'th');});
+
+    var html =
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">'+
+      'รายชื่อที่มีธุรกรรม ('+rows.length+' คน)</div>'+
+      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs)">'+
+      '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="background:var(--hg)">'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left">ชื่อ-สกุล</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:center">ครั้ง</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ฝากรวม</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ถอนรวม</th>'+
+      '</tr></thead><tbody>';
+
+    rows.forEach(function(p,i){
+      html += '<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+        '<td style="padding:9px 12px;font-size:13px;color:var(--td)">'+esc(p.name)+'</td>'+
+        '<td style="padding:9px 12px;font-size:13px;color:var(--ts);text-align:center">'+p.count+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:700;color:var(--ga);text-align:right">'+(p.dep>0?'+'+fmt(p.dep)+' ฿':'-')+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--red);text-align:right">'+(p.wit>0?'-'+fmt(p.wit)+' ฿':'-')+'</td>'+
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // แสดงคนที่ไม่มีธุรกรรมเดือนนี้
+    var hadTx = {};
+    txs.forEach(function(t){ hadTx[t.studentId]=true; });
+    var noTx = allStus.filter(function(s){ return !hadTx[s.id]; });
+    if (noTx.length > 0) {
+      html += '<div style="font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:600;color:var(--ts);margin:12px 0 8px">⏳ ยังไม่มีธุรกรรมเดือนนี้ ('+noTx.length+' คน)</div>'+
+        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
+        '<table style="width:100%;border-collapse:collapse"><tbody>';
+      noTx.forEach(function(s,i){
+        html += '<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+          '<td style="padding:8px 12px;font-size:13px;color:var(--ts)">'+esc(s.name)+'</td>'+
+          '<td style="padding:8px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    if(mEl) mEl.innerHTML = html;
+  });
 }
 
 function loadTodaySummary() {
@@ -1048,10 +1192,126 @@ function renderOv(c) {
   c.innerHTML=html;
 }
 function toggleOv(id) {var e=document.getElementById('ov-'+id); if(e) e.classList.toggle('on');}
+var adTxMode = 'today'; // 'today' | 'month' | 'all'
+var adTxMonth = null;  // เดือนที่เลือก เช่น "มิ.ย."
+var adTxYear  = null;  // ปีที่เลือก เช่น 2569
+
 function renderAdTx(c) {
-  c.innerHTML='<div class="st" style="margin-bottom:10px"><span>ธุรกรรมล่าสุดทั้งโรงเรียน</span></div><div class="txl load" id="adtxl">⏳ กำลังโหลด...</div>';
-  apiCall({action:'getHistory',limit:40},function(r){
-    if(r.ok) renderTxList('adtxl',r.transactions);
+  var now = new Date();
+  if (!adTxMonth) adTxMonth = MONTHS_SHORT[now.getMonth()];
+  if (!adTxYear)  adTxYear  = now.getFullYear() + 543;
+
+  var monthOpts = MONTHS_SHORT.map(function(m,i){
+    return '<option value="'+m+'" '+(m===adTxMonth?'selected':'')+'>'+MONTHS_FULL[i]+'</option>';
+  }).join('');
+
+  var yearOpts = '';
+  for (var y = adTxYear; y >= adTxYear - 4; y--) {
+    yearOpts += '<option value="'+y+'" '+(y===adTxYear?'selected':'')+'>'+y+'</option>';
+  }
+
+  c.innerHTML =
+    // tabs เลือก mode
+    '<div style="display:flex;background:var(--ceramic);border-radius:var(--br);padding:3px;gap:2px;margin-bottom:14px">'+
+    '<button id="adtx-btn-today" onclick="setAdTxMode(\'today\')"'+
+    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='today'?'var(--hg)':'transparent')+';color:'+(adTxMode==='today'?'#fff':'var(--ts)')+'">📅 วันนี้</button>'+
+    '<button id="adtx-btn-month" onclick="setAdTxMode(\'month\')"'+
+    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='month'?'var(--hg)':'transparent')+';color:'+(adTxMode==='month'?'#fff':'var(--ts)')+'">📆 รายเดือน</button>'+
+    '<button id="adtx-btn-all" onclick="setAdTxMode(\'all\')"'+
+    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='all'?'var(--hg)':'transparent')+';color:'+(adTxMode==='all'?'#fff':'var(--ts)')+'">📋 ทั้งหมด</button>'+
+    '</div>'+
+
+    // filter เดือน/ปี (แสดงเฉพาะ mode month)
+    '<div id="adtx-filter" style="'+(adTxMode==='month'?'':'display:none;')+'margin-bottom:12px;display:'+(adTxMode==='month'?'flex':'none')+';gap:8px;align-items:center">'+
+    '<select id="adtx-month" onchange="adTxMonth=this.value;loadAdTxData()"'+
+    ' style="flex:1;padding:9px 12px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    monthOpts+'</select>'+
+    '<select id="adtx-year" onchange="adTxYear=parseInt(this.value);loadAdTxData()"'+
+    ' style="width:100px;padding:9px 12px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    yearOpts+'</select>'+
+    '</div>'+
+
+    // summary cards
+    '<div id="adtx-summary" style="margin-bottom:14px"></div>'+
+
+    // list
+    '<div class="txl" id="adtxl"><div class="load">⏳ กำลังโหลด...</div></div>';
+
+  loadAdTxData();
+}
+
+function setAdTxMode(mode) {
+  adTxMode = mode;
+  renderAdTx(document.getElementById('admin-body'));
+}
+
+function loadAdTxData() {
+  var now = new Date();
+  var params = { limit: 500 };
+
+  if (adTxMode === 'today') {
+    params.date = now.getDate()+' '+MONTHS_SHORT[now.getMonth()]+' '+(now.getFullYear()+543);
+  } else if (adTxMode === 'month') {
+    params.month = adTxMonth;
+    params.year  = String(adTxYear);
+  } else {
+    params.limit = 100;
+  }
+
+  document.getElementById('adtxl').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
+
+  apiCall({action:'getHistory', limit:params.limit, date:params.date||'', month:params.month||'', year:params.year||''}, function(r) {
+    if (!r.ok) { document.getElementById('adtxl').innerHTML='<div class="load">โหลดไม่ได้</div>'; return; }
+    var txs = r.transactions || [];
+
+    // กรองฝั่ง client ตาม mode
+    var now2 = new Date();
+    if (adTxMode === 'today') {
+      var todayStr = now2.getDate()+' '+MONTHS_SHORT[now2.getMonth()]+' '+(now2.getFullYear()+543);
+      txs = txs.filter(function(t){ return t.date && t.date.indexOf(todayStr) === 0; });
+    } else if (adTxMode === 'month') {
+      txs = txs.filter(function(t){ return t.date && t.date.indexOf(adTxMonth) >= 0 && t.date.indexOf(String(adTxYear)) >= 0; });
+    }
+
+    // คำนวณ summary
+    var totalDep = txs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit = txs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+    var depCnt   = txs.filter(function(t){return t.type==='ฝาก';}).length;
+    var witCnt   = txs.filter(function(t){return t.type==='ถอน';}).length;
+
+    var title = adTxMode==='today' ? now2.getDate()+' '+MONTHS_FULL[now2.getMonth()]+' '+(now2.getFullYear()+543)
+              : adTxMode==='month' ? MONTHS_FULL[MONTHS_SHORT.indexOf(adTxMonth)]+' '+adTxYear
+              : 'ธุรกรรมล่าสุด';
+
+    // summary cards
+    var sumEl = document.getElementById('adtx-summary');
+    if (sumEl && txs.length > 0) {
+      sumEl.innerHTML =
+        '<div style="background:var(--hg);border-radius:var(--cr);padding:1rem;box-shadow:var(--cs)">'+
+        '<div style="font-size:12px;color:var(--tws);margin-bottom:8px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase">'+title+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+depCnt+' รายการ</div></div>'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💸 ถอนรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:#fca5a5">'+fmt(totalWit)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+witCnt+' รายการ</div></div>'+
+        '</div></div>';
+    } else if (sumEl) {
+      sumEl.innerHTML = '';
+    }
+
+    if (!txs.length) {
+      document.getElementById('adtxl').innerHTML =
+        '<div style="text-align:center;padding:2rem;color:var(--ts)">'+
+        '<div style="font-size:36px;margin-bottom:8px">📭</div>'+
+        '<div>ไม่พบข้อมูลธุรกรรม</div></div>';
+      return;
+    }
+
+    renderTxList('adtxl', txs);
   });
 }
 function renderPr(c) {
