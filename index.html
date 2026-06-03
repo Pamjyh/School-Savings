@@ -442,7 +442,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbzZAoOT-hKhfBcmESBCQAjpd0-ACcsQiSzri1eFhaWUKzeMekkb7lm98gqxKfDgamD4xw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwDx5RHs2US8R1zvWZRT5OFAn3yGgNEzEGsWkTEAiC5fppM3_Y023xRSKgAH0Sq394SeQ/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -450,6 +450,8 @@ var APW = 'admin61010097';
 var GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
 var ICONS  = {'อ.2':'🌸','อ.3':'🌼','ป.1':'🌱','ป.2':'🌿','ป.3':'📗','ป.4':'📘','ป.5':'📙','ป.6':'🎓'};
 var NEXT   = {'อ.2':'อ.3','อ.3':'ป.1','ป.1':'ป.2','ป.2':'ป.3','ป.3':'ป.4','ป.4':'ป.5','ป.5':'ป.6','ป.6':'จบการศึกษา'};
+var MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+var MONTHS_FULL  = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
 // STATE
 var role = null, curGrade = null, selStu = null;
@@ -464,15 +466,18 @@ var curStudentTab = 'list';
 function fmtDate(v) {
   if (!v) return '';
   var s = String(v);
-  var MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  if (s.length > 10 && (s.indexOf('T') > 0 || s.charAt(4) === '-')) {
+  // ISO format: "2026-06-03T02:47:00.000Z"
+  if (s.length > 10 && (s.indexOf('T') > 0 || (s.charAt(4) === '-' && s.charAt(7) === '-'))) {
     var d = new Date(v);
-    if (!isNaN(d)) {
-      var hh = String(d.getHours()).padStart(2,'0');
-      var mm = String(d.getMinutes()).padStart(2,'0');
-      return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + (d.getFullYear()+543) + ' ' + hh + ':' + mm;
+    if (!isNaN(d.getTime())) {
+      var thai = new Date(d.getTime() + 7*60*60*1000);
+      var y = thai.getUTCFullYear() + 543;
+      var hh = String(thai.getUTCHours()).padStart(2,'0');
+      var mm = String(thai.getUTCMinutes()).padStart(2,'0');
+      return thai.getUTCDate() + ' ' + MONTHS_SHORT[thai.getUTCMonth()] + ' ' + y + ' ' + hh + ':' + mm;
     }
   }
+  // Thai string อยู่แล้ว
   return s;
 }
 function fmt(n) { return Number(n||0).toLocaleString('th-TH'); }
@@ -686,21 +691,91 @@ function switchStudentTab(tab) {
 function loadTodaySummary() {
   var el=document.getElementById('today-content');
   el.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({action:'getHistory',grade:curGrade,limit:200},function(r){
-    if (!r.ok) {el.innerHTML='<div class="load">โหลดไม่ได้</div>'; return;}
-    var now=new Date();
-    // กรองเฉพาะวันนี้
-    var todayTxs=(r.transactions||[]).filter(function(t){
-      if (!t.date) return false;
-      var s=String(t.date);
-      var d;
-      if (s.length>10&&(s.indexOf('T')>0||s.charAt(4)==='-')) d=new Date(t.date);
-      else d=new Date(t.date);
-      if (!isNaN(d.getTime())) {
-        return d.getDate()===now.getDate()&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
-      }
-      return false;
+  var now=new Date();
+  // สร้าง Thai date string วันนี้ เช่น "3 มิ.ย. 2569"
+  var todayStr = now.getDate()+' '+MONTHS_SHORT[now.getMonth()]+' '+(now.getFullYear()+543);
+  var dateLabel = now.getDate()+' '+MONTHS_FULL[now.getMonth()]+' '+(now.getFullYear()+543);
+
+  // ส่ง date ไปให้ server กรองให้เลย ไม่ต้องกรองใน browser
+  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500}, function(r){
+    if (!r.ok) {el.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return;}
+    var todayTxs = r.transactions || [];
+
+    // สร้าง map รายคน
+    var stuMap={};
+    allStus.forEach(function(s){ stuMap[s.id]={name:s.name,balance:s.balance,dep:0,wit:0}; });
+    todayTxs.forEach(function(t){
+      if (!stuMap[t.studentId]) stuMap[t.studentId]={name:t.name,balance:0,dep:0,wit:0};
+      if (t.type==='ฝาก') stuMap[t.studentId].dep+=t.amount;
+      else stuMap[t.studentId].wit+=t.amount;
     });
+
+    var depositedIds={};
+    todayTxs.filter(function(t){return t.type==='ฝาก';}).forEach(function(t){depositedIds[t.studentId]=true;});
+    var deposited=allStus.filter(function(s){return depositedIds[s.id];});
+    var notDeposited=allStus.filter(function(s){return !depositedIds[s.id];});
+    var totalDep=todayTxs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit=todayTxs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+
+    if (!todayTxs.length) {
+      el.innerHTML=
+        '<div style="background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2.5rem 1rem;text-align:center;box-shadow:var(--cs)">'+
+        '<div style="font-size:36px;margin-bottom:8px">📭</div>'+
+        '<div style="font-size:15px;color:var(--ts)">วันนี้ยังไม่มีการฝาก-ถอน</div>'+
+        '<div style="font-size:13px;color:var(--ts);margin-top:4px">'+dateLabel+' · ชั้น'+curGrade+'</div>'+
+        '</div>'; return;
+    }
+
+    var html=
+      '<div style="background:var(--hg);border-radius:var(--cr);padding:1.25rem;margin-bottom:14px;box-shadow:var(--cs)">'+
+      '<div style="font-size:11px;color:var(--tws);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">สรุปวันนี้ · ชั้น'+curGrade+'</div>'+
+      '<div style="font-size:14px;color:var(--tw);font-weight:600;margin-bottom:12px">'+dateLabel+'</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากวันนี้</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+deposited.length+' คน</div>'+
+      '</div>'+
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">⏳ ยังไม่ฝาก</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:#fde68a">'+notDeposited.length+' คน</div>'+
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">จาก '+allStus.length+' คน</div>'+
+      '</div></div></div>'+
+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
+      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs);margin-bottom:16px">'+
+      '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="background:var(--hg)">'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left">ชื่อ-สกุล</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ฝากวันนี้</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ยอดสะสม</th>'+
+      '</tr></thead><tbody>';
+
+    deposited.forEach(function(s,i){
+      var d=stuMap[s.id]||{dep:0};
+      html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+        '<td style="padding:9px 12px;font-size:14px;color:var(--td)">'+esc(s.name)+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:700;color:var(--ga);text-align:right">+'+fmt(d.dep)+' ฿</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+        '</tr>';
+    });
+    html+='</tbody></table></div>';
+
+    if (notDeposited.length>0) {
+      html+='<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px">⏳ ยังไม่ได้ฝากวันนี้ ('+notDeposited.length+' คน)</div>'+
+        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
+        '<table style="width:100%;border-collapse:collapse"><tbody>';
+      notDeposited.forEach(function(s,i){
+        html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+          '<td style="padding:9px 12px;font-size:14px;color:var(--ts)">'+esc(s.name)+'</td>'+
+          '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+          '</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+    el.innerHTML=html;
+  });
+}
 
     var MFULL=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     var dateLabel=now.getDate()+' '+MFULL[now.getMonth()]+' '+(now.getFullYear()+543);
