@@ -442,7 +442,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbw7Prkvx28KD1MF9Sw7eYO03eKb1kC32hBEJc6hygiLFcpcxKd9sTJnWf09G8-cIGN0Bw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbzZAoOT-hKhfBcmESBCQAjpd0-ACcsQiSzri1eFhaWUKzeMekkb7lm98gqxKfDgamD4xw/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -454,6 +454,9 @@ var NEXT = {'อ.2':'อ.3','อ.3':'ป.1','ป.1':'ป.2','ป.2':'ป.3','ป
 var role = null, curGrade = null, selStu = null;
 var stus = [], cache = {}, txMode = 'dep', editStuId = null, editTxId = null;
 var adData = null, curAdTab = 'ov', pendPr = null;
+var stuPage = 0, PAGE_SIZE = 20;
+var allStus = [], filteredStus = [];
+var curStudentTab = 'list';
 
 // ===== API =====
 function apiCall(params, cb) {
@@ -534,7 +537,7 @@ function showParentSingle(stu, history) {
       '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
       '<div class="txi-info">' +
       '<div class="txn">' + t.type + '</div>' +
-      '<div class="txd">' + t.date + '</div></div>' +
+      '<div class="txd">' + fmtDate(t.date) + '</div></div>' +
       '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + ' ฿</div>' +
       '</div>';
   }).join('');
@@ -631,14 +634,32 @@ function loadStus(force) {
   });
 }
 
-var curStudentTab = 'list';
-
-function switchStudentTab(tab) {
+function filterStus(keyword) {
   curStudentTab = tab;
   var isToday = tab === 'today';
   document.getElementById('view-list').style.display    = isToday ? 'none' : 'block';
   document.getElementById('view-today').style.display   = isToday ? 'block' : 'none';
   // สไตล์ปุ่ม active
+  var btnList  = document.getElementById('vtab-list');
+  var btnToday = document.getElementById('vtab-today');
+  if (btnList && btnToday) {
+    btnList.style.background  = isToday ? 'transparent' : 'var(--hg)';
+    btnList.style.color       = isToday ? 'var(--ts)' : '#fff';
+    btnList.style.fontWeight  = isToday ? '500' : '600';
+    btnToday.style.background = isToday ? 'var(--hg)' : 'transparent';
+    btnToday.style.color      = isToday ? '#fff' : 'var(--ts)';
+    btnToday.style.fontWeight = isToday ? '600' : '500';
+  }
+  if (isToday) loadTodaySummary();
+}
+
+function switchStudentTab(tab) {
+  curStudentTab = tab;
+  var isToday = tab === 'today';
+  var vList  = document.getElementById('view-list');
+  var vToday = document.getElementById('view-today');
+  if (vList)  vList.style.display  = isToday ? 'none' : 'block';
+  if (vToday) vToday.style.display = isToday ? 'block' : 'none';
   var btnList  = document.getElementById('vtab-list');
   var btnToday = document.getElementById('vtab-today');
   if (btnList && btnToday) {
@@ -658,14 +679,27 @@ function loadTodaySummary() {
   apiCall({ action: 'getHistory', grade: curGrade, limit: 100 }, function(r) {
     if (!r.ok) { el.innerHTML = '<div class="load">โหลดไม่ได้</div>'; return; }
 
-    // กรองเฉพาะวันนี้
+    // กรองเฉพาะวันนี้ — รองรับทั้ง ISO format และ Thai string
     var now = new Date();
+    var MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     var todayTxs = (r.transactions || []).filter(function(t) {
       if (!t.date) return false;
-      // วันที่จาก Apps Script เช่น "28 พ.ค. 2569 13:30"
-      var MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-      var todayStr = now.getDate() + ' ' + MONTHS[now.getMonth()] + ' ' + (now.getFullYear()+543);
-      return t.date.indexOf(todayStr) === 0;
+      var s = String(t.date);
+      var d;
+      // ISO format
+      if (s.indexOf('T') > 0 || s.indexOf('-') === 4) {
+        d = new Date(t.date);
+      } else {
+        d = new Date(t.date);
+      }
+      if (!isNaN(d)) {
+        return d.getDate() === now.getDate() &&
+               d.getMonth() === now.getMonth() &&
+               d.getFullYear() === now.getFullYear();
+      }
+      // Thai string fallback: "3 มิ.ย. 2569 14:36"
+      var todayStr = now.getDate() + ' ' + MONTHS_SHORT[now.getMonth()] + ' ' + (now.getFullYear()+543);
+      return s.indexOf(todayStr) === 0;
     });
 
     if (!todayTxs.length) {
@@ -720,7 +754,7 @@ function loadTodaySummary() {
         '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
         '<div class="txi-info">' +
         '<div class="txn">' + esc(t.name) + '</div>' +
-        '<div class="txd">' + t.date + '</div></div>' +
+        '<div class="txd">' + fmtDate(t.date) + '</div></div>' +
         '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + ' ฿</div>' +
         '</div>';
     });
@@ -867,7 +901,7 @@ function renderTxList(id, txs) {
       '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
       '<div class="txi-info">' +
       '<div class="txn">' + esc(t.name) + '</div>' +
-      '<div class="txd">' + t.date + ' · ชั้น' + t.grade + '</div></div>' +
+      '<div class="txd">' + fmtDate(t.date) + ' · ชั้น' + t.grade + '</div></div>' +
       '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + '฿</div>' +
       '<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">' +
       '<button class="ebtn" style="font-size:10px;padding:3px 5px" onclick="openEditTx(\'' + t.id + '\',\'' + t.type + '\',' + t.amount + ',\'' + esc(t.name) + '\')">✏️</button>' +
@@ -1337,6 +1371,23 @@ function showErr(id,msg) { var e=document.getElementById(id+'-err'); e.textConte
 function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
 
 // ===== UTILS =====
+function fmtDate(dateVal) {
+  if (!dateVal) return '';
+  var s = String(dateVal);
+  // ถ้าเป็น ISO format เช่น "2025-06-03T02:47:00.000Z"
+  if (s.indexOf('T') > 0 || s.indexOf('-') === 4) {
+    var d = new Date(dateVal);
+    if (!isNaN(d)) {
+      var MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      var y = d.getFullYear() + 543;
+      var hh = String(d.getHours()).padStart(2,'0');
+      var mm = String(d.getMinutes()).padStart(2,'0');
+      return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + y + ' ' + hh + ':' + mm;
+    }
+  }
+  return s; // ถ้าเป็น Thai string อยู่แล้ว
+}
+
 function fmt(n) { return Number(n||0).toLocaleString('th-TH'); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function toast(msg,type) {
