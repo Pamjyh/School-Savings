@@ -448,948 +448,36 @@ var APW = 'admin61010097';
 // ==================
 
 var GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
-var ICONS = {'อ.2':'🌸','อ.3':'🌼','ป.1':'🌱','ป.2':'🌿','ป.3':'📗','ป.4':'📘','ป.5':'📙','ป.6':'🎓'};
-var NEXT = {'อ.2':'อ.3','อ.3':'ป.1','ป.1':'ป.2','ป.2':'ป.3','ป.3':'ป.4','ป.4':'ป.5','ป.5':'ป.6','ป.6':'จบการศึกษา'};
+var ICONS  = {'อ.2':'🌸','อ.3':'🌼','ป.1':'🌱','ป.2':'🌿','ป.3':'📗','ป.4':'📘','ป.5':'📙','ป.6':'🎓'};
+var NEXT   = {'อ.2':'อ.3','อ.3':'ป.1','ป.1':'ป.2','ป.2':'ป.3','ป.3':'ป.4','ป.4':'ป.5','ป.5':'ป.6','ป.6':'จบการศึกษา'};
 
+// STATE
 var role = null, curGrade = null, selStu = null;
-var stus = [], cache = {}, txMode = 'dep', editStuId = null, editTxId = null;
+var stus = [], cache = {}, txMode = 'dep';
+var editStuId = null, editTxId = null;
 var adData = null, curAdTab = 'ov', pendPr = null;
 var stuPage = 0, PAGE_SIZE = 20;
 var allStus = [], filteredStus = [];
 var curStudentTab = 'list';
 
-// ===== API =====
-function apiCall(params, cb) {
-  var url = API + '?' + Object.keys(params).map(function(k) {
-    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-  }).join('&');
-  fetch(url).then(function(r) { return r.json(); }).then(cb).catch(function(e) {
-    cb({ ok: false, error: 'เชื่อมต่อไม่ได้: ' + e.message });
-  });
-}
-
-// ===== NAV =====
-function go(pg) {
-  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('on'); });
-  document.getElementById('pg-' + pg).classList.add('on');
-  window.scrollTo(0, 0);
-}
-
-// ===== PARENT =====
-function searchParent() {
-  var name = document.getElementById('parent-search').value.trim();
-  if (!name) { showParentErr('กรุณาใส่ชื่อก่อน'); return; }
-  document.getElementById('parent-err').style.display = 'none';
-  document.getElementById('parent-result').style.display = 'none';
-  document.getElementById('parent-loading').style.display = 'block';
-
-  apiCall({ action: 'getStudentByName', name: name }, function(r) {
-    document.getElementById('parent-loading').style.display = 'none';
-    if (!r.ok) { showParentErr(r.error); return; }
-
-    document.getElementById('parent-result').style.display = 'block';
-
-    if (r.students.length > 1) {
-      // หลายคน → แสดงให้เลือก
-      document.getElementById('parent-multi').style.display = 'block';
-      document.getElementById('parent-single').style.display = 'none';
-      document.getElementById('parent-multi-list').innerHTML = r.students.map(function(s) {
-        return '<div class="scard" onclick="selectParentStudent(\'' + s.id + '\',\'' + esc(s.name) + '\',\'' + s.grade + '\',' + s.balance + ',[])">' +
-          '<div class="savt">' + (ICONS[s.grade] || '👦') + '</div>' +
-          '<div style="flex:1"><div class="sname">' + esc(s.name) + '</div>' +
-          '<div class="smeta">ชั้น ' + s.grade + '</div></div>' +
-          '<div class="sbal"><div class="sbv" style="color:var(--green)">' + fmt(s.balance) + ' ฿</div></div>' +
-          '</div>';
-      }).join('');
-    } else {
-      // คนเดียว → แสดงเลย
-      document.getElementById('parent-multi').style.display = 'none';
-      showParentSingle(r.students[0], r.history || []);
-    }
-  });
-}
-
-function selectParentStudent(id, name, grade, balance, history) {
-  document.getElementById('parent-multi').style.display = 'none';
-  // โหลด history ของคนนั้น
-  apiCall({ action: 'getStudentByName', name: name }, function(r) {
-    if (r.ok && r.students.length > 0) {
-      var stu = r.students.filter(function(s) { return s.id === id; })[0] || r.students[0];
-      showParentSingle(stu, r.history || []);
-    }
-  });
-}
-
-function showParentSingle(stu, history) {
-  document.getElementById('parent-single').style.display = 'block';
-  document.getElementById('ps-name').textContent = stu.name;
-  document.getElementById('ps-grade').textContent = 'ชั้น ' + stu.grade;
-  document.getElementById('ps-balance').textContent = fmt(stu.balance);
-
-  var histEl = document.getElementById('parent-history');
-  if (!history || !history.length) {
-    histEl.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>';
-    return;
-  }
-  histEl.innerHTML = history.map(function(t) {
-    var isD = t.type === 'ฝาก';
-    return '<div class="txi">' +
-      '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
-      '<div class="txi-info">' +
-      '<div class="txn">' + t.type + '</div>' +
-      '<div class="txd">' + fmtDate(t.date) + '</div></div>' +
-      '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + ' ฿</div>' +
-      '</div>';
-  }).join('');
-}
-
-function resetParent() {
-  document.getElementById('parent-search').value = '';
-  document.getElementById('parent-result').style.display = 'none';
-  document.getElementById('parent-err').style.display = 'none';
-  document.getElementById('parent-single').style.display = 'none';
-  document.getElementById('parent-multi').style.display = 'none';
-  document.getElementById('parent-search').focus();
-}
-
-function showParentErr(msg) {
-  var el = document.getElementById('parent-err');
-  el.textContent = '❌ ' + msg;
-  el.style.display = 'block';
-}
-
-// ===== AUTH =====
-function login() {
-  var pw = document.getElementById('lpw').value;
-  var err = document.getElementById('lerr');
-  if (pw === APW) {
-    role = 'admin'; err.style.display = 'none';
-    go('admin'); loadAdmin();
-  } else if (pw === TPW) {
-    role = 'teacher'; err.style.display = 'none';
-    renderGrades(); go('grades');
-  } else {
-    err.style.display = 'block';
-    document.getElementById('lpw').select();
-  }
-}
-function logout() {
-  role = null; curGrade = null; selStu = null; stus = []; cache = {};
-  document.getElementById('lpw').value = '';
-  document.getElementById('lerr').style.display = 'none';
-  go('login');
-}
-
-// ===== GRADE SELECT =====
-function renderGrades() {
-  var el = document.getElementById('grade-grid');
-  el.innerHTML = GRADES.map(function(g) {
-    var list = cache[g] || [];
-    var total = list.reduce(function(s, x) { return s + x.balance; }, 0);
-    return '<div class="gc" onclick="pickGrade(\'' + g + '\')">' +
-      '<div class="gc-icon">' + ICONS[g] + '</div>' +
-      '<div class="gc-name">' + g + '</div>' +
-      '<div class="gc-info" id="gci-' + g.replace('.','_') + '">' +
-        (list.length ? list.length + ' คน · <b style="color:var(--green)">' + fmt(total) + ' ฿</b>' : 'กำลังโหลด...') +
-      '</div></div>';
-  }).join('');
-  // โหลดข้อมูลทุกชั้นพร้อมกัน
-  GRADES.forEach(function(g) {
-    if (cache[g]) return;
-    apiCall({ action: 'getStudents', grade: g }, function(r) {
-      if (r.ok) cache[g] = r.students || [];
-      var el2 = document.getElementById('gci-' + g.replace('.','_'));
-      if (!el2) return;
-      var list2 = cache[g] || [];
-      var tot2 = list2.reduce(function(s, x) { return s + x.balance; }, 0);
-      el2.innerHTML = list2.length ? list2.length + ' คน · <b style="color:var(--green)">' + fmt(tot2) + ' ฿</b>' : 'ยังไม่มีนักเรียน';
-    });
-  });
-}
-
-function pickGrade(g) {
-  curGrade = g; selStu = null; stuPage = 0; curStudentTab = 'list';
-  switchStudentTab('list');
-  document.getElementById('stu-title').textContent = ICONS[g] + ' ชั้น' + g;
-  document.getElementById('bulk-title').textContent = '📋 ฝากรวม ชั้น' + g;
-  go('students');
-  loadStus();
-  loadGradeTx();
-}
-
-// ===== STUDENTS =====
-function loadStus(force) {
-  delete cache[curGrade];
-  document.getElementById('stu-list').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
-  var searchEl = document.getElementById('stu-search');
-  if (searchEl) searchEl.value = '';
-  apiCall({ action: 'getStudents', grade: curGrade }, function(r) {
-    if (!r.ok) { toast(r.error, 'err'); return; }
-    allStus = r.students || [];
-    filteredStus = allStus;
-    cache[curGrade] = allStus;
-    stus = allStus;
-    stuPage = 0;
-    renderStus(); renderStats();
-  });
-}
-
-function filterStus(keyword) {
-  curStudentTab = tab;
-  var isToday = tab === 'today';
-  document.getElementById('view-list').style.display    = isToday ? 'none' : 'block';
-  document.getElementById('view-today').style.display   = isToday ? 'block' : 'none';
-  // สไตล์ปุ่ม active
-  var btnList  = document.getElementById('vtab-list');
-  var btnToday = document.getElementById('vtab-today');
-  if (btnList && btnToday) {
-    btnList.style.background  = isToday ? 'transparent' : 'var(--hg)';
-    btnList.style.color       = isToday ? 'var(--ts)' : '#fff';
-    btnList.style.fontWeight  = isToday ? '500' : '600';
-    btnToday.style.background = isToday ? 'var(--hg)' : 'transparent';
-    btnToday.style.color      = isToday ? '#fff' : 'var(--ts)';
-    btnToday.style.fontWeight = isToday ? '600' : '500';
-  }
-  if (isToday) loadTodaySummary();
-}
-
-function switchStudentTab(tab) {
-  curStudentTab = tab;
-  var isToday = tab === 'today';
-  var vList  = document.getElementById('view-list');
-  var vToday = document.getElementById('view-today');
-  if (vList)  vList.style.display  = isToday ? 'none' : 'block';
-  if (vToday) vToday.style.display = isToday ? 'block' : 'none';
-  var btnList  = document.getElementById('vtab-list');
-  var btnToday = document.getElementById('vtab-today');
-  if (btnList && btnToday) {
-    btnList.style.background  = isToday ? 'transparent' : 'var(--hg)';
-    btnList.style.color       = isToday ? 'var(--ts)' : '#fff';
-    btnList.style.fontWeight  = isToday ? '500' : '600';
-    btnToday.style.background = isToday ? 'var(--hg)' : 'transparent';
-    btnToday.style.color      = isToday ? '#fff' : 'var(--ts)';
-    btnToday.style.fontWeight = isToday ? '600' : '500';
-  }
-  if (isToday) loadTodaySummary();
-}
-
-function loadTodaySummary() {
-  var el = document.getElementById('today-content');
-  el.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({ action: 'getHistory', grade: curGrade, limit: 100 }, function(r) {
-    if (!r.ok) { el.innerHTML = '<div class="load">โหลดไม่ได้</div>'; return; }
-
-    // กรองเฉพาะวันนี้ — รองรับทั้ง ISO format และ Thai string
-    var now = new Date();
-    var MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    var todayTxs = (r.transactions || []).filter(function(t) {
-      if (!t.date) return false;
-      var s = String(t.date);
-      var d;
-      // ISO format
-      if (s.indexOf('T') > 0 || s.indexOf('-') === 4) {
-        d = new Date(t.date);
-      } else {
-        d = new Date(t.date);
-      }
-      if (!isNaN(d)) {
-        return d.getDate() === now.getDate() &&
-               d.getMonth() === now.getMonth() &&
-               d.getFullYear() === now.getFullYear();
-      }
-      // Thai string fallback: "3 มิ.ย. 2569 14:36"
-      var todayStr = now.getDate() + ' ' + MONTHS_SHORT[now.getMonth()] + ' ' + (now.getFullYear()+543);
-      return s.indexOf(todayStr) === 0;
-    });
-
-    if (!todayTxs.length) {
-      el.innerHTML =
-        '<div style="background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2.5rem 1rem;text-align:center;box-shadow:var(--cs)">' +
-        '<div style="font-size:36px;margin-bottom:8px">📭</div>' +
-        '<div style="font-size:15px;color:var(--ts)">วันนี้ยังไม่มีการฝาก-ถอน</div>' +
-        '<div style="font-size:13px;color:var(--ts);margin-top:4px">ชั้น ' + curGrade + '</div>' +
-        '</div>';
-      return;
-    }
-
-    // สรุปยอด
-    var totalDep = 0, totalWit = 0, depCount = 0, witCount = 0;
-    todayTxs.forEach(function(t) {
-      if (t.type === 'ฝาก') { totalDep += t.amount; depCount++; }
-      else { totalWit += t.amount; witCount++; }
-    });
-
-    // วันที่ภาษาไทย
-    var MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-    var dateLabel = now.getDate() + ' ' + MONTHS_FULL[now.getMonth()] + ' ' + (now.getFullYear()+543);
-
-    var html =
-      // header card
-      '<div style="background:var(--hg);border-radius:var(--cr);padding:1.25rem;margin-bottom:14px;box-shadow:var(--cs)">' +
-      '<div style="font-size:11px;color:var(--tws);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">สรุปวันนี้ · ชั้น ' + curGrade + '</div>' +
-      '<div style="font-size:14px;color:var(--tw);font-weight:600;margin-bottom:12px">' + dateLabel + '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">' +
-      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากวันนี้</div>' +
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:var(--gl)">' + fmt(totalDep) + ' ฿</div>' +
-      '<div style="font-size:11px;color:var(--tws);margin-top:2px">' + depCount + ' รายการ</div>' +
-      '</div>' +
-      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">' +
-      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💸 ถอนวันนี้</div>' +
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:#fca5a5">' + fmt(totalWit) + ' ฿</div>' +
-      '<div style="font-size:11px;color:var(--tws);margin-top:2px">' + witCount + ' รายการ</div>' +
-      '</div>' +
-      '</div>' +
-      '</div>' +
-
-      // รายชื่อที่ฝากวันนี้
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;letter-spacing:-0.01em">' +
-      'รายชื่อที่ฝาก-ถอนวันนี้ (' + todayTxs.length + ' รายการ)</div>' +
-      '<div class="txl">';
-
-    todayTxs.forEach(function(t) {
-      var isD = t.type === 'ฝาก';
-      html +=
-        '<div class="txi">' +
-        '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
-        '<div class="txi-info">' +
-        '<div class="txn">' + esc(t.name) + '</div>' +
-        '<div class="txd">' + fmtDate(t.date) + '</div></div>' +
-        '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + ' ฿</div>' +
-        '</div>';
-    });
-
-    html += '</div>';
-
-    // ยังไม่ได้ฝาก
-    var depositedIds = {};
-    todayTxs.filter(function(t){ return t.type==='ฝาก'; }).forEach(function(t){ depositedIds[t.studentId]=true; });
-    var notDeposited = allStus.filter(function(s){ return !depositedIds[s.id]; });
-    if (notDeposited.length > 0) {
-      html += '<div style="margin-top:16px">' +
-        '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px;letter-spacing:-0.01em">' +
-        '⏳ ยังไม่ได้ฝากวันนี้ (' + notDeposited.length + ' คน)</div>' +
-        '<div style="display:flex;flex-direction:column;gap:4px">';
-      notDeposited.forEach(function(s) {
-        html += '<div style="background:var(--white);border-radius:10px;border:1px solid var(--ceramic);padding:9px 13px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--cs)">' +
-          '<span style="font-size:14px;color:var(--td)">' + esc(s.name) + '</span>' +
-          '<span style="font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux)">' + fmt(s.balance) + ' ฿</span>' +
-          '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    el.innerHTML = html;
-  });
-}
-
-
-
-function filterStus(keyword) {
-  var q = keyword.trim().toLowerCase();
-  filteredStus = q
-    ? allStus.filter(function(s) { return s.name.toLowerCase().includes(q); })
-    : allStus;
-  stuPage = 0;
-  stus = filteredStus;
-  renderStus();
-}
-
-function renderStus() {
-  var el = document.getElementById('stu-list');
-  var pgEl = document.getElementById('stu-pagination');
-  var totalPages = Math.ceil(stus.length / PAGE_SIZE);
-
-  // ตรวจ page ไม่เกิน
-  if (stuPage >= totalPages && totalPages > 0) stuPage = totalPages - 1;
-  if (stuPage < 0) stuPage = 0;
-
-  document.getElementById('stu-cnt').textContent = '(' + stus.length + ' คน)';
-
-  if (!stus.length) {
-    el.innerHTML = '<div class="empty"><div style="font-size:36px;margin-bottom:8px">👥</div><p>ยังไม่มีนักเรียน<br>กด "เพิ่ม" เพื่อเริ่มต้น</p></div>';
-    pgEl.style.display = 'none';
-    return;
-  }
-
-  // slice เฉพาะหน้านี้
-  var start = stuPage * PAGE_SIZE;
-  var pageStus = stus.slice(start, start + PAGE_SIZE);
-
-  el.innerHTML = pageStus.map(function(s) {
-    var sel = selStu && selStu.id === s.id ? ' sel' : '';
-    var balColor = s.balance >= 0 ? 'var(--green)' : 'var(--red)';
-    return '<div class="scard' + sel + '" onclick="pickStu(\'' + s.id + '\')">' +
-      '<div class="savt">' + (ICONS[s.grade] || '👦') + '</div>' +
-      '<div style="flex:1;min-width:0"><div class="sname">' + esc(s.name) + '</div>' +
-      '<div class="smeta">เข้าปี ' + (s.entryYear || '-') + (s.bankAccount ? ' · ' + esc(s.bankAccount) : '') + '</div></div>' +
-      '<div class="sbal"><div class="sbv" style="color:' + balColor + '">' + fmt(s.balance) + ' ฿</div>' +
-      '<div class="sbl">สะสม</div></div>' +
-      '<button class="ebtn" onclick="event.stopPropagation();openEdit(\'' + s.id + '\',\'' + esc(s.name) + '\',\'' + esc(s.bankAccount || '') + '\')">✏️</button>' +
-      '<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\'' + s.id + '\',\'' + esc(s.name) + '\',' + s.balance + ')">🗑️</button>' +
-      '</div>';
-  }).join('');
-
-  // Pagination bar
-  if (totalPages <= 1) {
-    pgEl.style.display = 'none';
-    return;
-  }
-
-  pgEl.style.display = 'flex';
-  var pgHtml = '';
-
-  // ปุ่มก่อนหน้า
-  pgHtml += '<button onclick="changeStuPage(' + (stuPage-1) + ')" ' +
-    (stuPage === 0 ? 'disabled' : '') +
-    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--ibdr);background:' +
-    (stuPage === 0 ? '#F5F5F4' : '#fff') + ';cursor:' +
-    (stuPage === 0 ? 'default' : 'pointer') + ';color:' +
-    (stuPage === 0 ? 'var(--ts)' : 'var(--hg)') + ';font-size:14px">← ก่อนหน้า</button>';
-
-  // เลขหน้า
-  pgHtml += '<span style="font-size:13px;color:var(--ts);padding:0 4px">หน้า ' + (stuPage+1) + ' / ' + totalPages + ' (' + stus.length + ' คน)</span>';
-
-  // ปุ่มถัดไป
-  pgHtml += '<button onclick="changeStuPage(' + (stuPage+1) + ')" ' +
-    (stuPage >= totalPages-1 ? 'disabled' : '') +
-    ' style="padding:7px 14px;border-radius:8px;border:1px solid var(--ibdr);background:' +
-    (stuPage >= totalPages-1 ? '#F5F5F4' : 'var(--hg)') + ';cursor:' +
-    (stuPage >= totalPages-1 ? 'default' : 'pointer') + ';color:' +
-    (stuPage >= totalPages-1 ? 'var(--ts)' : '#fff') + ';font-size:14px">ถัดไป →</button>';
-
-  pgEl.innerHTML = pgHtml;
-}
-
-function changeStuPage(page) {
-  stuPage = page;
-  renderStus();
-  window.scrollTo(0, 0);
-}
-
-function renderStats() {
-  var total = stus.reduce(function(s, x) { return s + x.balance; }, 0);
-  var avg = stus.length ? total / stus.length : 0;
-  document.getElementById('stu-stats').innerHTML =
-    '<div class="sc"><div class="sv" style="color:var(--green)">' + fmt(total) + '</div><div class="sl">ยอดรวม (฿)</div></div>' +
-    '<div class="sc"><div class="sv">' + stus.length + '</div><div class="sl">นักเรียน</div></div>' +
-    '<div class="sc"><div class="sv" style="color:var(--gold)">' + fmt(avg) + '</div><div class="sl">เฉลี่ย (฿)</div></div>';
-}
-
-function pickStu(id) {
-  selStu = stus.filter(function(s) { return s.id === id; })[0] || null;
-  renderStus();
-}
-
-function loadGradeTx() {
-  var el = document.getElementById('tx-grade');
-  el.innerHTML = '<div class="load">⏳...</div>';
-  apiCall({ action: 'getHistory', grade: curGrade, limit: 10 }, function(r) {
-    if (r.ok) renderTxList('tx-grade', r.transactions);
-  });
-}
-
-function renderTxList(id, txs) {
-  var el = document.getElementById(id);
-  if (!txs || !txs.length) {
-    el.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
-    return;
-  }
-  el.innerHTML = txs.map(function(t) {
-    var isD = t.type === 'ฝาก';
-    return '<div class="txi">' +
-      '<div class="txb ' + (isD ? 'd' : 'w') + '">' + (isD ? '💰' : '💸') + '</div>' +
-      '<div class="txi-info">' +
-      '<div class="txn">' + esc(t.name) + '</div>' +
-      '<div class="txd">' + fmtDate(t.date) + ' · ชั้น' + t.grade + '</div></div>' +
-      '<div class="txa ' + (isD ? 'd' : 'w') + '">' + (isD ? '+' : '-') + fmt(t.amount) + '฿</div>' +
-      '<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">' +
-      '<button class="ebtn" style="font-size:10px;padding:3px 5px" onclick="openEditTx(\'' + t.id + '\',\'' + t.type + '\',' + t.amount + ',\'' + esc(t.name) + '\')">✏️</button>' +
-      '<button class="ebtn del" style="font-size:10px;padding:3px 5px" onclick="askDelTx(\'' + t.id + '\',\'' + t.type + '\',' + t.amount + ',\'' + esc(t.name) + '\',\'' + t.studentId + '\')">🗑️</button>' +
-      '</div></div>';
-  }).join('');
-}
-
-// ===== BULK =====
-function goBulk() {
-  if (!allStus.length) { toast('ยังไม่มีนักเรียน', 'err'); return; }
-  renderBulk(); go('bulk');
-}
-
-function renderBulk() {
-  document.getElementById('bsum').style.display = 'none';
-  var btn = document.getElementById('bsave-btn');
-  btn.disabled = false; btn.textContent = '💾 บันทึกทั้งหมด';
-  // ใช้ allStus ทุกคน ไม่ใช้แค่หน้าปัจจุบัน
-  document.getElementById('bulk-body').innerHTML = allStus.map(function(s) {
-    return '<tr><td>' + esc(s.name) + '</td>' +
-      '<td style="color:var(--green);font-weight:600">' + fmt(s.balance) + ' ฿</td>' +
-      '<td><input class="binp" type="number" min="1" id="bi-' + s.id + '" placeholder="0"' +
-      ' oninput="this.classList.toggle(\'hv\',this.value>0);updBulk()" onfocus="this.select()"></td></tr>';
-  }).join('');
-}
-
-function updBulk() {
-  var cnt = 0, tot = 0;
-  allStus.forEach(function(s) {
-    var v = parseFloat(document.getElementById('bi-' + s.id).value) || 0;
-    if (v > 0) { cnt++; tot += v; }
-  });
-  var el = document.getElementById('bsum');
-  if (cnt > 0) { el.textContent = 'กรอกแล้ว ' + cnt + ' คน · รวม ' + fmt(tot) + ' บาท'; el.style.display = 'block'; }
-  else el.style.display = 'none';
-}
-
-function submitBulk() {
-  // ใช้ allStus ทุกคน
-  var items = allStus.map(function(s) {
-    var el = document.getElementById('bi-' + s.id);
-    return { s: s, amt: el ? (parseFloat(el.value) || 0) : 0 };
-  }).filter(function(x) { return x.amt > 0; });
-  if (!items.length) { toast('ยังไม่ได้กรอกยอดใดเลย', 'err'); return; }
-  var btn = document.getElementById('bsave-btn');
-  btn.disabled = true;
-  var done = 0, ok = 0, fail = [];
-  // ส่งทีละคน sequential
-  function sendNext(i) {
-    if (i >= items.length) {
-      btn.disabled = false; btn.textContent = '💾 บันทึกทั้งหมด';
-      if (!fail.length) {
-        toast('✓ บันทึกฝากสำเร็จ ' + ok + ' คน', 'ok');
-        loadStus(true);
-        setTimeout(function() { go('students'); }, 600);
-      } else {
-        toast('สำเร็จ ' + ok + ' · ล้มเหลว ' + fail.length + ' คน', 'err');
-        loadStus(true);
-      }
-      return;
-    }
-    btn.textContent = '⏳ ' + (i+1) + '/' + items.length + '...';
-    apiCall({ action: 'deposit', studentId: items[i].s.id, amount: items[i].amt, password: TPW }, function(r) {
-      if (r.ok) ok++; else fail.push(items[i].s.name);
-      setTimeout(function() { sendNext(i + 1); }, 200);
-    });
-  }
-  sendNext(0);
-}
-
-// ===== TX MODAL =====
-function openTx(mode) {
-  if (!selStu) { toast('กรุณาคลิกเลือกนักเรียนก่อน', 'err'); return; }
-  txMode = mode;
-  var isD = mode === 'dep';
-  document.getElementById('tx-title').textContent = isD ? '💰 บันทึกฝากเงิน' : '💸 บันทึกถอนเงิน';
-  document.getElementById('tx-sub').textContent = selStu.name + ' · ยอดสะสม ' + fmt(selStu.balance) + ' บาท';
-  document.getElementById('tx-amt').value = '';
-  document.getElementById('tx-amt').disabled = false;
-  document.getElementById('tx-amt').placeholder = isD
-    ? 'จำนวนเงินที่ฝาก (บาท)'
-    : 'จำนวนเงินที่ถอน (สูงสุด ' + fmt(selStu.balance) + ' บาท)';
-  hide('tx-ok'); hide('tx-err');
-  var zone = document.getElementById('tx-confirm-zone');
-  if (zone) zone.style.display = 'none';
-  var btn = document.getElementById('tx-confirm');
-  btn.className = 'mbtn ' + (isD ? 'mbtn-g' : 'mbtn-r');
-  btn.textContent = isD ? '✓ ยืนยันฝาก' : 'ถัดไป →';
-  btn.onclick = isD ? confirmTx : previewWithdraw;
-  openMo('tx');
-  setTimeout(function() { document.getElementById('tx-amt').focus(); }, 100);
-}
-
-function previewWithdraw() {
-  var amt = parseFloat(document.getElementById('tx-amt').value);
-  if (!amt || amt <= 0) { showErr('tx', 'กรุณาใส่จำนวนเงิน'); return; }
-  if (amt > selStu.balance) {
-    showErr('tx', '⚠️ ยอดไม่พอ · มีแค่ ' + fmt(selStu.balance) + ' บาท');
-    return;
-  }
-  hide('tx-err');
-  var zone = document.getElementById('tx-confirm-zone');
-  if (!zone) {
-    zone = document.createElement('div');
-    zone.id = 'tx-confirm-zone';
-    document.getElementById('tx-amt').parentNode.insertBefore(zone, document.getElementById('tx-confirm').parentNode);
-  }
-  zone.style.display = 'block';
-  zone.innerHTML =
-    '<div style="background:var(--warm);border-radius:var(--cr);padding:12px 14px;margin-bottom:10px;border:1px solid var(--gl)">' +
-    '<div style="font-size:11px;color:var(--ts);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600">ยืนยันการถอนเงิน</div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-    '<span style="font-size:13px;color:var(--ts)">นักเรียน</span>' +
-    '<span style="font-size:14px;font-weight:600;color:var(--td)">' + esc(selStu.name) + '</span></div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-    '<span style="font-size:13px;color:var(--ts)">ถอนออก</span>' +
-    '<span style="font-size:14px;font-weight:700;color:var(--red)">- ' + fmt(amt) + ' บาท</span></div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--ibdr)">' +
-    '<span style="font-size:13px;color:var(--ts)">ยอดคงเหลือหลังถอน</span>' +
-    '<span style="font-family:\'Mitr\',sans-serif;font-size:16px;font-weight:700;color:var(--sbux)">' + fmt(selStu.balance - amt) + ' บาท</span></div>' +
-    '</div>';
-  document.getElementById('tx-amt').disabled = true;
-  var btn = document.getElementById('tx-confirm');
-  btn.textContent = '✓ ยืนยันถอนเงิน';
-  btn.onclick = confirmTx;
-}
-
-function confirmTx() {
-  var amt = parseFloat(document.getElementById('tx-amt').value);
-  if (!amt || amt <= 0) { showErr('tx', 'กรุณาใส่จำนวนเงิน'); return; }
-  var action = txMode === 'dep' ? 'deposit' : 'withdraw';
-  apiCall({ action: action, studentId: selStu.id, amount: amt, password: TPW }, function(r) {
-    if (!r.ok) {
-      document.getElementById('tx-amt').disabled = false;
-      var zone = document.getElementById('tx-confirm-zone');
-      if (zone) zone.style.display = 'none';
-      showErr('tx', r.error);
-      return;
-    }
-    showOk('tx', '✓ ' + (txMode === 'dep' ? 'ฝาก' : 'ถอน') + ' ' + fmt(amt) + ' บาท · ยอดใหม่ ' + fmt(r.newBalance) + ' บาท');
-    var s = allStus.filter(function(x) { return x.id === selStu.id; })[0];
-    if (s) { s.balance = r.newBalance; selStu.balance = r.newBalance; }
-    renderStus(); renderStats(); loadGradeTx();
-    setTimeout(function() {
-      closeMo('tx');
-      document.getElementById('tx-amt').disabled = false;
-      var zone = document.getElementById('tx-confirm-zone');
-      if (zone) zone.style.display = 'none';
-    }, 1800);
-  });
-}
-
-// ===== ADD STUDENTS =====
-function openAdd() {
-  if (!curGrade) { toast('กรุณาเลือกชั้นก่อน', 'err'); return; }
-  document.getElementById('add-sub').textContent = 'เพิ่มนักเรียนชั้น ' + curGrade;
-  document.getElementById('add-names').value = '';
-  document.getElementById('add-one').value = '';
-  document.getElementById('add-bank').value = '';
-  hide('add-ok'); hide('add-err');
-  openMo('add');
-  setTimeout(function() { document.getElementById('add-names').focus(); }, 100);
-}
-
-function confirmAdd() {
-  var oneName = document.getElementById('add-one').value.trim();
-  var bank = document.getElementById('add-bank').value.trim();
-  var bulk = document.getElementById('add-names').value.split('\n')
-    .map(function(n) { return n.trim(); })
-    .filter(function(n) { return n.length > 0; });
-  var items = oneName
-    ? [{ name: oneName, bank: bank }]
-    : bulk.map(function(n) { return { name: n, bank: '' }; });
-  if (!items.length) { showErr('add', 'กรุณาใส่ชื่ออย่างน้อย 1 คน'); return; }
-
-  var btn = document.getElementById('add-btn');
-  btn.disabled = true;
-
-  // ส่งทีละคน sequential ไม่ใช่ parallel
-  var ok = 0, fail = [];
-  function sendNext(i) {
-    if (i >= items.length) {
-      // เสร็จหมดแล้ว
-      btn.textContent = '➕ เพิ่ม'; btn.disabled = false;
-      if (!fail.length) {
-        showOk('add', '✓ เพิ่มสำเร็จ ' + ok + ' คน ตามลำดับที่พิมพ์');
-        document.getElementById('add-names').value = '';
-        document.getElementById('add-one').value = '';
-        document.getElementById('add-bank').value = '';
-        loadStus(true);
-        setTimeout(function() { closeMo('add'); }, 1500);
-      } else {
-        showErr('add', 'สำเร็จ ' + ok + ' · ล้มเหลว: ' + fail.join(', '));
-        loadStus(true);
-      }
-      return;
-    }
-    btn.textContent = '⏳ ' + (i+1) + '/' + items.length + '...';
-    var item = items[i];
-    // ส่ง order index ไปด้วย เพื่อให้ id เรียงตามลำดับ
-    apiCall({
-      action: 'addStudent',
-      name: item.name,
-      bankAccount: item.bank,
-      grade: curGrade,
-      password: TPW
-    }, function(r) {
-      if (r.ok) ok++; else fail.push(item.name);
-      // รอ 300ms ก่อนส่งคนถัดไป ป้องกัน Apps Script หนัก
-      setTimeout(function() { sendNext(i + 1); }, 300);
-    });
-  }
-  sendNext(0);
-}
-
-// ===== EDIT STUDENT =====
-function openEdit(id, name, bank) {
-  editStuId = id;
-  document.getElementById('edit-name').value = name;
-  document.getElementById('edit-bank').value = bank || '';
-  hide('edit-err');
-  openMo('edit');
-  setTimeout(function() { document.getElementById('edit-name').focus(); }, 100);
-}
-
-function confirmEdit() {
-  var name = document.getElementById('edit-name').value.trim();
-  var bank = document.getElementById('edit-bank').value.trim();
-  if (!name) { showErr('edit', 'กรุณาใส่ชื่อ'); return; }
-  apiCall({ action: 'editStudent', studentId: editStuId, name: name, bankAccount: bank, password: TPW }, function(r) {
-    if (!r.ok) { showErr('edit', r.error); return; }
-    toast('✓ แก้ไขสำเร็จ', 'ok'); closeMo('edit'); loadStus(true);
-  });
-}
-
-// ===== DELETE STUDENT =====
-function askDelStu(id, name, bal) {
-  document.getElementById('del-title').textContent = '🗑️ ลบนักเรียน';
-  document.getElementById('del-sub').textContent = 'ลบ "' + name + '" ออกจากระบบ?' + (bal > 0 ? '\n⚠️ ยังมียอดออม ' + fmt(bal) + ' บาท' : '');
-  hide('del-err');
-  document.getElementById('del-btn').onclick = function() {
-    apiCall({ action: 'deleteStudent', studentId: id, password: APW }, function(r) {
-      if (!r.ok) { document.getElementById('del-err').textContent = r.error; document.getElementById('del-err').style.display = 'block'; return; }
-      toast('✓ ลบ ' + name + ' สำเร็จ', 'ok'); closeMo('del');
-      if (selStu && selStu.id === id) selStu = null;
-      loadStus(true);
-    });
-  };
-  openMo('del');
-}
-
-// ===== EDIT TX =====
-function openEditTx(txId, type, amount, name) {
-  editTxId = txId;
-  document.getElementById('etx-sub').textContent = name + ' · ' + type + ' ' + fmt(amount) + ' บาท';
-  document.getElementById('etx-amt').value = amount;
-  hide('etx-err');
-  openMo('etx');
-  setTimeout(function() { var el = document.getElementById('etx-amt'); el.focus(); el.select(); }, 100);
-}
-
-function confirmEditTx() {
-  var amt = parseFloat(document.getElementById('etx-amt').value);
-  if (!amt || amt <= 0) { showErr('etx', 'กรุณาใส่จำนวนเงิน'); return; }
-  apiCall({ action: 'editTransaction', txId: editTxId, amount: amt, password: TPW }, function(r) {
-    if (!r.ok) { showErr('etx', r.error); return; }
-    toast('✓ แก้ไขยอดสำเร็จ', 'ok'); closeMo('etx'); loadStus(true); loadGradeTx();
-  });
-}
-
-// ===== DELETE TX =====
-function askDelTx(txId, type, amount, name, stuId) {
-  document.getElementById('del-title').textContent = '🗑️ ลบรายการธุรกรรม';
-  document.getElementById('del-sub').textContent = 'ลบรายการ "' + type + ' ' + fmt(amount) + ' บาท" ของ ' + name + '?\nยอดเงินจะถูกปรับอัตโนมัติ';
-  hide('del-err');
-  document.getElementById('del-btn').onclick = function() {
-    apiCall({ action: 'deleteTransaction', txId: txId, password: TPW }, function(r) {
-      if (!r.ok) { document.getElementById('del-err').textContent = r.error; document.getElementById('del-err').style.display = 'block'; return; }
-      toast('✓ ลบรายการสำเร็จ', 'ok'); closeMo('del'); loadStus(true); loadGradeTx();
-    });
-  };
-  openMo('del');
-}
-
-// ===== ADMIN =====
-function loadAdmin() {
-  document.getElementById('admin-body').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({ action: 'getAllSummary', password: APW }, function(r) {
-    if (!r.ok) { toast(r.error, 'err'); return; }
-    adData = r; renderAdTab('ov');
-  });
-}
-
-function adTab(tab) {
-  curAdTab = tab;
-  ['ov','tx','pr','gd'].forEach(function(t) {
-    document.getElementById('at-' + t).classList.toggle('on', t === tab);
-  });
-  renderAdTab(tab);
-}
-
-function renderAdTab(tab) {
-  var c = document.getElementById('admin-body');
-  if (tab === 'ov') renderOv(c);
-  else if (tab === 'tx') renderAdTx(c);
-  else if (tab === 'pr') renderPr(c);
-  else if (tab === 'gd') renderGd(c);
-}
-
-function renderOv(c) {
-  if (!adData) { c.innerHTML = '<div class="load">⏳...</div>'; return; }
-  var html = '<div class="grand"><div style="font-size:12px;color:var(--ts);margin-bottom:4px;font-family:\'Mitr\',sans-serif">ยอดออมรวมทั้งโรงเรียน</div>' +
-    '<div class="gv">' + fmt(adData.grandTotal) + ' บาท</div>' +
-    '<div class="gs">นักเรียน ' + adData.totalStudents + ' คน · ' + GRADES.length + ' ชั้นเรียน</div></div>';
-  GRADES.forEach(function(g) {
-    var d = adData.grades[g] || { students: [], totalBalance: 0 };
-    html += '<div class="ovblk"><div class="ovhd" onclick="toggleOv(\'' + g.replace('.','_') + '\')">' +
-      '<div class="ovg">' + ICONS[g] + ' ชั้น' + g + '</div>' +
-      '<div style="text-align:right"><div class="ovt">' + fmt(d.totalBalance) + ' ฿</div>' +
-      '<div class="ovc">' + d.students.length + ' คน</div></div></div>' +
-      '<div class="ovbd" id="ov-' + g.replace('.','_') + '">' +
-      (d.students.length ? d.students.map(function(s) {
-        return '<div class="ovr"><span>' + esc(s.name) + '</span>' +
-          '<span style="font-weight:600;color:' + (s.balance >= 0 ? 'var(--green)' : 'var(--red)') + '">' + fmt(s.balance) + ' ฿</span></div>';
-      }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>') +
-      '</div></div>';
-  });
-  c.innerHTML = html;
-}
-
-function toggleOv(id) { var el = document.getElementById('ov-' + id); if (el) el.classList.toggle('on'); }
-
-function renderAdTx(c) {
-  c.innerHTML = '<div class="st" style="margin-bottom:10px"><span>ธุรกรรมล่าสุดทั้งโรงเรียน</span></div><div class="txl load" id="adtxl">⏳ กำลังโหลด...</div>';
-  apiCall({ action: 'getHistory', limit: 40 }, function(r) {
-    if (r.ok) renderTxList('adtxl', r.transactions);
-  });
-}
-
-function renderEx(c) {
-  var now = new Date();
-  var yr = now.getFullYear() + 543;
-  var mo = now.getMonth() + 1;
-  var tm = (mo >= 5 && mo <= 9) ? 1 : 2;
-  var MOPTS = 'มกราคม,กุมภาพันธ์,มีนาคม,เมษายน,พฤษภาคม,มิถุนายน,กรกฎาคม,สิงหาคม,กันยายน,ตุลาคม,พฤศจิกายน,ธันวาคม'.split(',');
-  var moSel = MOPTS.map(function(m, i) { return '<option value="' + (i+1) + '"' + ((i+1)===mo?' selected':'') + '>' + m + '</option>'; }).join('');
-  var grSel = '<option value="">ทุกชั้น</option>' + GRADES.map(function(g) { return '<option value="' + g + '">' + g + '</option>'; }).join('');
-  c.innerHTML =
-    '<div style="font-family:\'Mitr\',sans-serif;font-size:15px;margin-bottom:12px">📥 สร้างรายงานสรุปยอด</div>' +
-    '<div class="ic"><div class="ic-t">📅 สรุปรายเดือน (ส่งธนาคาร)</div>' +
-    '<div class="ic-d">ยอดฝาก-ถอนแต่ละคนในเดือนที่เลือก พร้อมเลขบัญชี ธกส.</div>' +
-    '<div class="fgrid"><div><label class="flbl">เดือน</label><select class="finp" id="xmo" style="margin-bottom:0">' + moSel + '</select></div>' +
-    '<div><label class="flbl">ปี (พ.ศ.)</label><input type="number" class="finp" id="xmoy" value="' + yr + '" style="margin-bottom:0"></div></div>' +
-    '<label class="flbl">ชั้นเรียน</label><select class="finp" id="xmog">' + grSel + '</select>' +
-    '<div class="fok" id="xmo-ok"></div><div class="ferr" id="xmo-err"></div>' +
-    '<button class="abtn" style="background:var(--hg)" onclick="doExpMo()">📥 สร้างรายงานรายเดือน</button></div>' +
-    '<div class="ic"><div class="ic-t">📚 สรุปรายภาคเรียน</div>' +
-    '<div class="ic-d">ยอดสะสมตลอดเทอม แยกรายเดือน พร้อมเลขบัญชี ธกส.<br>เทอม 1 = พ.ค.–ก.ย. · เทอม 2 = พ.ย.–มี.ค.</div>' +
-    '<div class="fgrid"><div><label class="flbl">ภาคเรียน</label><select class="finp" id="xtm" style="margin-bottom:0">' +
-    '<option value="1"' + (tm===1?' selected':'') + '>ภาคเรียนที่ 1</option>' +
-    '<option value="2"' + (tm===2?' selected':'') + '>ภาคเรียนที่ 2</option></select></div>' +
-    '<div><label class="flbl">ปีการศึกษา (พ.ศ.)</label><input type="number" class="finp" id="xtmy" value="' + yr + '" style="margin-bottom:0"></div></div>' +
-    '<label class="flbl">ชั้นเรียน</label><select class="finp" id="xtmg">' + grSel + '</select>' +
-    '<div class="fok" id="xtm-ok"></div><div class="ferr" id="xtm-err"></div>' +
-    '<button class="abtn" style="background:var(--ga)" onclick="doExpTm()">📥 สร้างรายงานรายเทอม</button></div>';
-}
-
-function doExpMo() {
-  var mo = document.getElementById('xmo').value;
-  var yr = document.getElementById('xmoy').value;
-  var gr = document.getElementById('xmog').value;
-  var ok = document.getElementById('xmo-ok'); var err = document.getElementById('xmo-err');
-  ok.style.display='none'; err.style.display='none';
-  var btn = document.querySelector('#admin-body .ic:first-of-type .abtn');
-  btn.textContent='⏳ กำลังสร้าง...'; btn.disabled=true;
-  apiCall({ action:'exportMonthly', month:mo, year:yr, grade:gr, password:APW }, function(r) {
-    btn.textContent='📥 สร้างรายงานรายเดือน'; btn.disabled=false;
-    if (!r.ok) { err.textContent=r.error; err.style.display='block'; return; }
-    ok.innerHTML='✓ สร้างสำเร็จ! ' + r.studentCount + ' คน · ฝาก ' + fmt(r.totalDeposit) + ' ถอน ' + fmt(r.totalWithdraw) + ' บาท<br><a href="' + r.url + '" target="_blank" style="color:var(--sbux);font-weight:600">→ เปิด Google Sheets</a>';
-    ok.style.display='block';
-  });
-}
-
-function doExpTm() {
-  var tm = document.getElementById('xtm').value;
-  var yr = document.getElementById('xtmy').value;
-  var gr = document.getElementById('xtmg').value;
-  var ok = document.getElementById('xtm-ok'); var err = document.getElementById('xtm-err');
-  ok.style.display='none'; err.style.display='none';
-  var btn = document.querySelector('#admin-body .ic:last-of-type .abtn');
-  btn.textContent='⏳ กำลังสร้าง...'; btn.disabled=true;
-  apiCall({ action:'exportTerm', term:tm, year:yr, grade:gr, password:APW }, function(r) {
-    btn.textContent='📥 สร้างรายงานรายเทอม'; btn.disabled=false;
-    if (!r.ok) { err.textContent=r.error; err.style.display='block'; return; }
-    ok.innerHTML='✓ สร้างสำเร็จ! ' + r.studentCount + ' คน · ฝาก ' + fmt(r.totalDeposit) + ' ถอน ' + fmt(r.totalWithdraw) + ' บาท<br><a href="' + r.url + '" target="_blank" style="color:var(--ga);font-weight:600">→ เปิด Google Sheets</a>';
-    ok.style.display='block';
-  });
-}
-
-function renderPr(c) {
-  var pgrid = GRADES.map(function(g) {
-    return '<button class="pbtn" onclick="askPr(\'' + g + '\')">' + ICONS[g] + '<br><b>' + g + '</b><br>→ ' + NEXT[g] + '</button>';
-  }).join('');
-  c.innerHTML =
-    '<div class="ic"><div class="ic-t">🎓 เลื่อนชั้นรายชั้น</div>' +
-    '<div class="ic-d">กดปุ่มชั้นที่ต้องการ นักเรียนจะเลื่อนขึ้น ยอดเงินติดตามไปด้วย</div>' +
-    '<div class="pgrid">' + pgrid + '</div></div>' +
-    '<div class="ic"><div class="ic-t">⚡ เลื่อนชั้นทั้งโรงเรียน</div>' +
-    '<div class="ic-d">ใช้ตอนต้นปีการศึกษาใหม่ ทุกชั้นเลื่อนพร้อมกัน<br>นักเรียน ป.6 จะย้ายเป็น "จบการศึกษา" อัตโนมัติ</div>' +
-    '<button class="abtn" style="background:var(--sbux)" onclick="askPrAll()">⚡ เลื่อนชั้นทั้งโรงเรียน (ต้นปีการศึกษาใหม่)</button></div>';
-}
-
-function renderGd(c) {
-  c.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({ action: 'getGraduated', password: APW }, function(r) {
-    if (!r.ok) { c.innerHTML = '<div class="load">โหลดไม่ได้</div>'; return; }
-    if (!r.students.length) {
-      c.innerHTML = '<div class="empty"><div style="font-size:36px;margin-bottom:8px">🎓</div><p>ยังไม่มีนักเรียนจบการศึกษา</p></div>';
-      return;
-    }
-    var tot = r.students.reduce(function(s,x) { return s+x.balance; }, 0);
-    c.innerHTML = '<div style="background:var(--pbg);border-radius:12px;padding:1rem;text-align:center;margin-bottom:14px;border:1px solid var(--plt)">' +
-      '<div style="font-size:12px;color:var(--sbux);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>' +
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--sbux)">' + fmt(tot) + ' บาท</div>' +
-      '<div style="font-size:12px;color:var(--ts)">' + r.students.length + ' คน</div></div>' +
-      r.students.map(function(s) {
-        return '<div class="grdc"><div><div class="grdn">' + esc(s.name) + '</div>' +
-          '<div class="grdm">เข้าปี ' + (s.entryYear||'-') + (s.bankAccount ? ' · ' + esc(s.bankAccount) : '') + '</div></div>' +
-          '<div class="grdb">' + fmt(s.balance) + ' ฿</div></div>';
-      }).join('');
-  });
-}
-
-// ===== PROMOTE =====
-function askPr(g) {
-  pendPr = { type:'single', grade:g };
-  document.getElementById('pr-title').textContent = 'เลื่อนชั้น ' + ICONS[g] + ' ' + g;
-  document.getElementById('pr-sub').textContent = 'นักเรียนทุกคนในชั้น ' + g + ' จะย้ายไป ' + NEXT[g] + '\nยอดเงินสะสมติดตามไปด้วย';
-  hide('pr-err');
-  document.getElementById('pr-btn').onclick = doPr;
-  openMo('pr');
-}
-function askPrAll() {
-  pendPr = { type:'all' };
-  document.getElementById('pr-title').textContent = '⚡ เลื่อนชั้นทั้งโรงเรียน';
-  document.getElementById('pr-sub').textContent = 'นักเรียนทุกชั้นเลื่อนขึ้นพร้อมกัน\nนักเรียน ป.6 → จบการศึกษา\n\nทำได้ปีละครั้ง ยืนยันใช่ไหม?';
-  hide('pr-err');
-  document.getElementById('pr-btn').onclick = doPr;
-  openMo('pr');
-}
-function doPr() {
-  var params = pendPr.type === 'all' ? { action:'promoteAll', password:APW } : { action:'promoteGrade', password:APW, grade:pendPr.grade };
-  apiCall(params, function(r) {
-    if (!r.ok) { document.getElementById('pr-err').textContent=r.error; document.getElementById('pr-err').style.display='block'; return; }
-    closeMo('pr');
-    toast(pendPr.type==='all' ? '✓ เลื่อนชั้นทั้งโรงเรียนสำเร็จ!' : '✓ เลื่อนชั้น ' + pendPr.grade + ' สำเร็จ (' + r.promoted + ' คน)', 'ok');
-    pendPr = null; cache = {}; loadAdmin();
-  });
-}
-
-// ===== MODAL HELPERS =====
-function openMo(id) { document.getElementById('mo-'+id).classList.add('on'); }
-function closeMo(id) { document.getElementById('mo-'+id).classList.remove('on'); }
-function showOk(id,msg) { var e=document.getElementById(id+'-ok'); e.textContent=msg; e.style.display='block'; hide(id+'-err'); }
-function showErr(id,msg) { var e=document.getElementById(id+'-err'); e.textContent=msg; e.style.display='block'; hide(id+'-ok'); }
-function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
-
 // ===== UTILS =====
-function fmtDate(dateVal) {
-  if (!dateVal) return '';
-  var s = String(dateVal);
-  // ถ้าเป็น ISO format เช่น "2025-06-03T02:47:00.000Z"
-  if (s.indexOf('T') > 0 || s.indexOf('-') === 4) {
-    var d = new Date(dateVal);
+function fmtDate(v) {
+  if (!v) return '';
+  var s = String(v);
+  var MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  if (s.length > 10 && (s.indexOf('T') > 0 || s.charAt(4) === '-')) {
+    var d = new Date(v);
     if (!isNaN(d)) {
-      var MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-      var y = d.getFullYear() + 543;
       var hh = String(d.getHours()).padStart(2,'0');
       var mm = String(d.getMinutes()).padStart(2,'0');
-      return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + y + ' ' + hh + ':' + mm;
+      return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + (d.getFullYear()+543) + ' ' + hh + ':' + mm;
     }
   }
-  return s; // ถ้าเป็น Thai string อยู่แล้ว
+  return s;
 }
-
 function fmt(n) { return Number(n||0).toLocaleString('th-TH'); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
 function toast(msg,type) {
   var t=document.createElement('div');
   t.className='toast'+(type?' '+type:'');
@@ -1397,6 +485,711 @@ function toast(msg,type) {
   document.getElementById('tw').appendChild(t);
   setTimeout(function(){t.remove();},3500);
 }
+
+// ===== API =====
+function apiCall(params,cb) {
+  var url = API+'?'+Object.keys(params).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  }).join('&');
+  fetch(url).then(function(r){return r.json();}).then(cb).catch(function(e){
+    cb({ok:false,error:'เชื่อมต่อไม่ได้: '+e.message});
+  });
+}
+
+// ===== NAV =====
+function go(pg) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
+  document.getElementById('pg-'+pg).classList.add('on');
+  window.scrollTo(0,0);
+}
+
+// ===== AUTH =====
+function login() {
+  var pw=document.getElementById('lpw').value;
+  var err=document.getElementById('lerr');
+  if (pw===APW) {
+    role='admin'; err.style.display='none';
+    go('admin'); loadAdmin();
+  } else if (pw===TPW) {
+    role='teacher'; err.style.display='none';
+    renderGrades(); go('grades');
+  } else {
+    err.style.display='block';
+    document.getElementById('lpw').select();
+  }
+}
+function logout() {
+  role=null; curGrade=null; selStu=null; stus=[]; cache={}; allStus=[]; filteredStus=[];
+  document.getElementById('lpw').value='';
+  document.getElementById('lerr').style.display='none';
+  go('login');
+}
+
+// ===== GRADE SELECT =====
+function renderGrades() {
+  var el=document.getElementById('grade-grid');
+  el.innerHTML=GRADES.map(function(g){
+    var list=cache[g]||[];
+    var total=list.reduce(function(s,x){return s+x.balance;},0);
+    return '<div class="gc" onclick="pickGrade(\''+g+'\')">' +
+      '<div class="gc-icon">'+ICONS[g]+'</div>' +
+      '<div class="gc-name">'+g+'</div>' +
+      '<div class="gc-info" id="gci-'+g.replace('.','_')+'">' +
+        (list.length ? list.length+' คน · <b style="color:var(--ga)">'+fmt(total)+' ฿</b>' : 'กำลังโหลด...') +
+      '</div></div>';
+  }).join('');
+  GRADES.forEach(function(g){
+    if (cache[g]) return;
+    apiCall({action:'getStudents',grade:g},function(r){
+      if (r.ok) cache[g]=r.students||[];
+      var el2=document.getElementById('gci-'+g.replace('.','_'));
+      if (!el2) return;
+      var list2=cache[g]||[];
+      var tot2=list2.reduce(function(s,x){return s+x.balance;},0);
+      el2.innerHTML=list2.length ? list2.length+' คน · <b style="color:var(--ga)">'+fmt(tot2)+' ฿</b>' : 'ยังไม่มีนักเรียน';
+    });
+  });
+}
+
+function pickGrade(g) {
+  curGrade=g; selStu=null; stuPage=0; curStudentTab='list';
+  document.getElementById('stu-title').textContent=ICONS[g]+' ชั้น'+g;
+  document.getElementById('bulk-title').textContent='📋 ฝากรวม ชั้น'+g;
+  go('students');
+  switchStudentTab('list');
+  loadStus();
+  loadGradeTx();
+}
+
+// ===== STUDENTS =====
+function loadStus() {
+  delete cache[curGrade];
+  document.getElementById('stu-list').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  var se=document.getElementById('stu-search'); if(se) se.value='';
+  apiCall({action:'getStudents',grade:curGrade},function(r){
+    if (!r.ok) {toast(r.error,'err'); return;}
+    allStus=r.students||[];
+    filteredStus=allStus;
+    cache[curGrade]=allStus;
+    stus=allStus;
+    stuPage=0;
+    renderStus(); renderStats();
+  });
+}
+
+function filterStus(kw) {
+  var q=kw.trim().toLowerCase();
+  filteredStus=q ? allStus.filter(function(s){return s.name.toLowerCase().indexOf(q)>=0;}) : allStus;
+  stus=filteredStus;
+  stuPage=0;
+  renderStus();
+}
+
+function renderStus() {
+  var el=document.getElementById('stu-list');
+  var pgEl=document.getElementById('stu-pagination');
+  var total=Math.ceil(stus.length/PAGE_SIZE);
+  if (stuPage>=total && total>0) stuPage=total-1;
+  if (stuPage<0) stuPage=0;
+  document.getElementById('stu-cnt').textContent='('+stus.length+' คน)';
+  if (!stus.length) {
+    el.innerHTML='<div class="empty"><div style="font-size:36px;margin-bottom:8px">👥</div><p>ยังไม่มีนักเรียน<br>กด "เพิ่ม" เพื่อเริ่มต้น</p></div>';
+    pgEl.style.display='none'; return;
+  }
+  var start=stuPage*PAGE_SIZE;
+  var pageStus=stus.slice(start,start+PAGE_SIZE);
+  el.innerHTML=pageStus.map(function(s){
+    var sel=selStu&&selStu.id===s.id?' sel':'';
+    var bc=s.balance>=0?'var(--ga)':'var(--red)';
+    return '<div class="scard'+sel+'" onclick="pickStu(\''+s.id+'\')">'+
+      '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="sname">'+esc(s.name)+'</div>'+
+      '<div class="smeta">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
+      '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
+      '<div class="sbl">สะสม</div></div>'+
+      '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\')">✏️</button>'+
+      '<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>'+
+      '</div>';
+  }).join('');
+  if (total<=1) {pgEl.style.display='none'; return;}
+  pgEl.style.display='flex';
+  pgEl.innerHTML=
+    '<button onclick="changeStuPage('+(stuPage-1)+')" '+(stuPage===0?'disabled':'')+
+    ' style="padding:7px 14px;border-radius:var(--br);border:1px solid var(--gl);background:'+(stuPage===0?'var(--warm)':'var(--white)')+';cursor:'+(stuPage===0?'default':'pointer')+';color:'+(stuPage===0?'var(--ts)':'var(--td)')+';font-size:14px">← ก่อนหน้า</button>'+
+    '<span style="font-size:13px;color:var(--ts);padding:0 4px">หน้า '+(stuPage+1)+' / '+total+' ('+stus.length+' คน)</span>'+
+    '<button onclick="changeStuPage('+(stuPage+1)+')" '+(stuPage>=total-1?'disabled':'')+
+    ' style="padding:7px 14px;border-radius:var(--br);border:1px solid var(--gl);background:'+(stuPage>=total-1?'var(--warm)':'var(--hg)')+';cursor:'+(stuPage>=total-1?'default':'pointer')+';color:'+(stuPage>=total-1?'var(--ts)':'#fff')+';font-size:14px">ถัดไป →</button>';
+}
+
+function changeStuPage(p) { stuPage=p; renderStus(); window.scrollTo(0,0); }
+
+function renderStats() {
+  var total=allStus.reduce(function(s,x){return s+x.balance;},0);
+  var avg=allStus.length?total/allStus.length:0;
+  document.getElementById('stu-stats').innerHTML=
+    '<div class="sc"><div class="sv" style="color:var(--ga)">'+fmt(total)+'</div><div class="sl">ยอดรวม (฿)</div></div>'+
+    '<div class="sc"><div class="sv">'+allStus.length+'</div><div class="sl">นักเรียน</div></div>'+
+    '<div class="sc"><div class="sv" style="color:var(--gold)">'+fmt(avg)+'</div><div class="sl">เฉลี่ย (฿)</div></div>';
+}
+
+function pickStu(id) {
+  selStu=allStus.filter(function(s){return s.id===id;})[0]||null;
+  renderStus();
+}
+
+function loadGradeTx() {
+  var el=document.getElementById('tx-grade');
+  el.innerHTML='<div class="load">⏳...</div>';
+  apiCall({action:'getHistory',grade:curGrade,limit:10},function(r){
+    if (r.ok) renderTxList('tx-grade',r.transactions);
+  });
+}
+
+function renderTxList(id,txs) {
+  var el=document.getElementById(id);
+  if (!txs||!txs.length) {
+    el.innerHTML='<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
+    return;
+  }
+  el.innerHTML=txs.map(function(t){
+    var isD=t.type==='ฝาก';
+    return '<div class="txi">'+
+      '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
+      '<div class="txi-info">'+
+      '<div class="txn">'+esc(t.name)+'</div>'+
+      '<div class="txd">'+fmtDate(t.date)+' · ชั้น'+t.grade+'</div></div>'+
+      '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+'฿</div>'+
+      '<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">'+
+      '<button class="ebtn" style="font-size:10px;padding:3px 5px" onclick="openEditTx(\''+t.id+'\',\''+t.type+'\','+t.amount+',\''+esc(t.name)+'\')">✏️</button>'+
+      '<button class="ebtn del" style="font-size:10px;padding:3px 5px" onclick="askDelTx(\''+t.id+'\',\''+t.type+'\','+t.amount+',\''+esc(t.name)+'\',\''+t.studentId+'\')">🗑️</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ===== DAILY SUMMARY =====
+function switchStudentTab(tab) {
+  curStudentTab=tab;
+  var isT=tab==='today';
+  var vl=document.getElementById('view-list');
+  var vt=document.getElementById('view-today');
+  if(vl) vl.style.display=isT?'none':'block';
+  if(vt) vt.style.display=isT?'block':'none';
+  var bl=document.getElementById('vtab-list');
+  var bt=document.getElementById('vtab-today');
+  if(bl&&bt){
+    bl.style.background=isT?'transparent':'var(--hg)'; bl.style.color=isT?'var(--ts)':'#fff'; bl.style.fontWeight=isT?'500':'600';
+    bt.style.background=isT?'var(--hg)':'transparent'; bt.style.color=isT?'#fff':'var(--ts)'; bt.style.fontWeight=isT?'600':'500';
+  }
+  if(isT) loadTodaySummary();
+}
+
+function loadTodaySummary() {
+  var el=document.getElementById('today-content');
+  el.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  apiCall({action:'getHistory',grade:curGrade,limit:200},function(r){
+    if (!r.ok) {el.innerHTML='<div class="load">โหลดไม่ได้</div>'; return;}
+    var now=new Date();
+    // กรองเฉพาะวันนี้
+    var todayTxs=(r.transactions||[]).filter(function(t){
+      if (!t.date) return false;
+      var s=String(t.date);
+      var d;
+      if (s.length>10&&(s.indexOf('T')>0||s.charAt(4)==='-')) d=new Date(t.date);
+      else d=new Date(t.date);
+      if (!isNaN(d.getTime())) {
+        return d.getDate()===now.getDate()&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+      }
+      return false;
+    });
+
+    var MFULL=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    var dateLabel=now.getDate()+' '+MFULL[now.getMonth()]+' '+(now.getFullYear()+543);
+
+    // สร้าง map นักเรียนแต่ละคนฝากเท่าไหร่วันนี้
+    var stuMap={};
+    allStus.forEach(function(s){ stuMap[s.id]={name:s.name,balance:s.balance,dep:0,wit:0,txs:[]}; });
+    todayTxs.forEach(function(t){
+      if (!stuMap[t.studentId]) stuMap[t.studentId]={name:t.name,balance:0,dep:0,wit:0,txs:[]};
+      if (t.type==='ฝาก') stuMap[t.studentId].dep+=t.amount;
+      else stuMap[t.studentId].wit+=t.amount;
+      stuMap[t.studentId].txs.push(t);
+    });
+
+    var depositedIds={};
+    todayTxs.filter(function(t){return t.type==='ฝาก';}).forEach(function(t){depositedIds[t.studentId]=true;});
+    var deposited=allStus.filter(function(s){return depositedIds[s.id];});
+    var notDeposited=allStus.filter(function(s){return !depositedIds[s.id];});
+    var totalDep=todayTxs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit=todayTxs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+
+    if (!todayTxs.length) {
+      el.innerHTML=
+        '<div style="background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2.5rem 1rem;text-align:center;box-shadow:var(--cs)">'+
+        '<div style="font-size:36px;margin-bottom:8px">📭</div>'+
+        '<div style="font-size:15px;color:var(--ts)">วันนี้ยังไม่มีการฝาก-ถอน</div>'+
+        '<div style="font-size:13px;color:var(--ts);margin-top:4px">'+dateLabel+' · ชั้น'+curGrade+'</div>'+
+        '</div>'; return;
+    }
+
+    var html=
+      // header
+      '<div style="background:var(--hg);border-radius:var(--cr);padding:1.25rem;margin-bottom:14px;box-shadow:var(--cs)">'+
+      '<div style="font-size:11px;color:var(--tws);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">สรุปวันนี้ · ชั้น'+curGrade+'</div>'+
+      '<div style="font-size:14px;color:var(--tw);font-weight:600;margin-bottom:12px">'+dateLabel+'</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากวันนี้</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+deposited.length+' คน</div>'+
+      '</div>'+
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">⏳ ยังไม่ฝาก</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:#fde68a">'+notDeposited.length+' คน</div>'+
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">จาก '+allStus.length+' คน</div>'+
+      '</div></div></div>'+
+
+      // ตารางรายชื่อ — ฝากแล้ว
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px;letter-spacing:-0.01em">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
+      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs);margin-bottom:16px">'+
+      '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="background:var(--hg)">'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left;font-weight:600">ชื่อ-สกุล</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right;font-weight:600">ฝากวันนี้</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right;font-weight:600">ยอดสะสม</th>'+
+      '</tr></thead><tbody>';
+
+    deposited.forEach(function(s,i){
+      var d=stuMap[s.id]||{dep:0};
+      html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">' +
+        '<td style="padding:9px 12px;font-size:14px;color:var(--td)">'+esc(s.name)+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:700;color:var(--ga);text-align:right">+'+fmt(d.dep)+' ฿</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+        '</tr>';
+    });
+    html+='</tbody></table></div>';
+
+    // ยังไม่ฝาก
+    if (notDeposited.length>0) {
+      html+='<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px;letter-spacing:-0.01em">⏳ ยังไม่ได้ฝากวันนี้ ('+notDeposited.length+' คน)</div>'+
+        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
+        '<table style="width:100%;border-collapse:collapse"><tbody>';
+      notDeposited.forEach(function(s,i){
+        html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+          '<td style="padding:9px 12px;font-size:14px;color:var(--ts)">'+esc(s.name)+'</td>'+
+          '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+          '</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+
+    el.innerHTML=html;
+  });
+}
+
+// ===== BULK =====
+function goBulk() {
+  if (!allStus.length) {toast('ยังไม่มีนักเรียน','err'); return;}
+  renderBulk(); go('bulk');
+}
+function renderBulk() {
+  document.getElementById('bsum').style.display='none';
+  var btn=document.getElementById('bsave-btn');
+  btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
+  document.getElementById('bulk-body').innerHTML=allStus.map(function(s){
+    return '<tr><td>'+esc(s.name)+'</td>'+
+      '<td style="color:var(--ga);font-weight:600">'+fmt(s.balance)+' ฿</td>'+
+      '<td><input class="binp" type="number" min="1" id="bi-'+s.id+'" placeholder="0"'+
+      ' oninput="this.classList.toggle(\'hv\',this.value>0);updBulk()" onfocus="this.select()"></td></tr>';
+  }).join('');
+}
+function updBulk() {
+  var cnt=0,tot=0;
+  allStus.forEach(function(s){
+    var v=parseFloat(document.getElementById('bi-'+s.id).value)||0;
+    if(v>0){cnt++;tot+=v;}
+  });
+  var el=document.getElementById('bsum');
+  if(cnt>0){el.textContent='กรอกแล้ว '+cnt+' คน · รวม '+fmt(tot)+' บาท';el.style.display='block';}
+  else el.style.display='none';
+}
+function submitBulk() {
+  var items=allStus.map(function(s){
+    var e=document.getElementById('bi-'+s.id);
+    return {s:s,amt:e?parseFloat(e.value)||0:0};
+  }).filter(function(x){return x.amt>0;});
+  if (!items.length) {toast('ยังไม่ได้กรอกยอดใดเลย','err'); return;}
+  var btn=document.getElementById('bsave-btn');
+  btn.disabled=true;
+  var ok=0,fail=[];
+  function sendNext(i) {
+    if (i>=items.length) {
+      btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
+      if (!fail.length) {
+        toast('✓ บันทึกสำเร็จ '+ok+' คน','ok');
+        loadStus(); setTimeout(function(){go('students');},600);
+      } else {
+        toast('สำเร็จ '+ok+' · ล้มเหลว '+fail.length+' คน','err'); loadStus();
+      }
+      return;
+    }
+    btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
+    apiCall({action:'deposit',studentId:items[i].s.id,amount:items[i].amt,password:TPW},function(r){
+      if(r.ok) ok++; else fail.push(items[i].s.name);
+      setTimeout(function(){sendNext(i+1);},200);
+    });
+  }
+  sendNext(0);
+}
+
+// ===== TX MODAL =====
+function openTx(mode) {
+  if (!selStu) {toast('กรุณาคลิกเลือกนักเรียนก่อน','err'); return;}
+  txMode=mode;
+  var isD=mode==='dep';
+  document.getElementById('tx-title').textContent=isD?'💰 บันทึกฝากเงิน':'💸 บันทึกถอนเงิน';
+  document.getElementById('tx-sub').textContent=selStu.name+' · ยอดสะสม '+fmt(selStu.balance)+' บาท';
+  var amt=document.getElementById('tx-amt');
+  amt.value=''; amt.disabled=false;
+  amt.placeholder=isD?'จำนวนเงินที่ฝาก (บาท)':'จำนวนเงินที่ถอน (สูงสุด '+fmt(selStu.balance)+' บาท)';
+  hide('tx-ok'); hide('tx-err');
+  var zone=document.getElementById('tx-confirm-zone');
+  if(zone) zone.style.display='none';
+  var btn=document.getElementById('tx-confirm');
+  btn.className='mbtn '+(isD?'mbtn-g':'mbtn-r');
+  btn.textContent=isD?'✓ ยืนยันฝาก':'ถัดไป →';
+  btn.onclick=isD?confirmTx:previewWithdraw;
+  openMo('tx');
+  setTimeout(function(){amt.focus();},100);
+}
+function previewWithdraw() {
+  var amt=parseFloat(document.getElementById('tx-amt').value);
+  if (!amt||amt<=0) {showErr('tx','กรุณาใส่จำนวนเงิน'); return;}
+  if (amt>selStu.balance) {showErr('tx','⚠️ ยอดไม่พอ · มีแค่ '+fmt(selStu.balance)+' บาท'); return;}
+  hide('tx-err');
+  var zone=document.getElementById('tx-confirm-zone');
+  if(!zone){
+    zone=document.createElement('div'); zone.id='tx-confirm-zone';
+    var amtEl=document.getElementById('tx-amt');
+    amtEl.parentNode.insertBefore(zone,amtEl.nextSibling);
+  }
+  zone.style.display='block';
+  zone.innerHTML=
+    '<div style="background:var(--warm);border-radius:var(--cr);padding:12px 14px;margin-bottom:10px;border:1px solid var(--gl)">'+
+    '<div style="font-size:11px;color:var(--ts);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600">ยืนยันการถอนเงิน</div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">นักเรียน</span><span style="font-size:14px;font-weight:600">'+esc(selStu.name)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">ถอนออก</span><span style="font-size:14px;font-weight:700;color:var(--red)">- '+fmt(amt)+' บาท</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--ibdr)"><span style="font-size:13px;color:var(--ts)">ยอดคงเหลือหลังถอน</span>'+
+    '<span style="font-family:\'Mitr\',sans-serif;font-size:16px;font-weight:700;color:var(--sbux)">'+fmt(selStu.balance-amt)+' บาท</span></div></div>';
+  document.getElementById('tx-amt').disabled=true;
+  var btn=document.getElementById('tx-confirm');
+  btn.textContent='✓ ยืนยันถอนเงิน'; btn.onclick=confirmTx;
+}
+function confirmTx() {
+  var amt=parseFloat(document.getElementById('tx-amt').value);
+  if (!amt||amt<=0) {showErr('tx','กรุณาใส่จำนวนเงิน'); return;}
+  var action=txMode==='dep'?'deposit':'withdraw';
+  apiCall({action:action,studentId:selStu.id,amount:amt,password:TPW},function(r){
+    if (!r.ok) {
+      document.getElementById('tx-amt').disabled=false;
+      var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
+      showErr('tx',r.error); return;
+    }
+    showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท');
+    var s=allStus.filter(function(x){return x.id===selStu.id;})[0];
+    if(s){s.balance=r.newBalance; selStu.balance=r.newBalance;}
+    renderStus(); renderStats(); loadGradeTx();
+    setTimeout(function(){
+      closeMo('tx');
+      document.getElementById('tx-amt').disabled=false;
+      var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
+    },1800);
+  });
+}
+
+// ===== ADD STUDENTS =====
+function openAdd() {
+  if (!curGrade) {toast('กรุณาเลือกชั้นก่อน','err'); return;}
+  document.getElementById('add-sub').textContent='เพิ่มนักเรียนชั้น '+curGrade;
+  document.getElementById('add-names').value='';
+  document.getElementById('add-one').value='';
+  document.getElementById('add-bank').value='';
+  hide('add-ok'); hide('add-err');
+  openMo('add');
+  setTimeout(function(){document.getElementById('add-names').focus();},100);
+}
+function confirmAdd() {
+  var oneName=document.getElementById('add-one').value.trim();
+  var bank=document.getElementById('add-bank').value.trim();
+  var bulk=document.getElementById('add-names').value.split('\n').map(function(n){return n.trim();}).filter(function(n){return n.length>0;});
+  var items=oneName?[{name:oneName,bank:bank}]:bulk.map(function(n){return{name:n,bank:''};});
+  if (!items.length) {showErr('add','กรุณาใส่ชื่ออย่างน้อย 1 คน'); return;}
+  var btn=document.getElementById('add-btn');
+  btn.disabled=true;
+  var ok=0,fail=[];
+  function sendNext(i) {
+    if (i>=items.length) {
+      btn.textContent='➕ เพิ่ม'; btn.disabled=false;
+      if (!fail.length) {
+        showOk('add','✓ เพิ่มสำเร็จ '+ok+' คน ตามลำดับที่พิมพ์');
+        document.getElementById('add-names').value='';
+        document.getElementById('add-one').value='';
+        document.getElementById('add-bank').value='';
+        loadStus(); setTimeout(function(){closeMo('add');},1500);
+      } else {
+        showErr('add','สำเร็จ '+ok+' · ล้มเหลว: '+fail.join(', ')); loadStus();
+      }
+      return;
+    }
+    btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
+    apiCall({action:'addStudent',name:items[i].name,bankAccount:items[i].bank,grade:curGrade,password:TPW},function(r){
+      if(r.ok) ok++; else fail.push(items[i].name);
+      setTimeout(function(){sendNext(i+1);},300);
+    });
+  }
+  sendNext(0);
+}
+
+// ===== EDIT STUDENT =====
+function openEdit(id,name,bank) {
+  editStuId=id;
+  document.getElementById('edit-name').value=name;
+  document.getElementById('edit-bank').value=bank||'';
+  hide('edit-err'); openMo('edit');
+  setTimeout(function(){var e=document.getElementById('edit-name');e.focus();e.select();},100);
+}
+function confirmEdit() {
+  var name=document.getElementById('edit-name').value.trim();
+  var bank=document.getElementById('edit-bank').value.trim();
+  if (!name) {showErr('edit','กรุณาใส่ชื่อ'); return;}
+  apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,password:TPW},function(r){
+    if (!r.ok) {showErr('edit',r.error); return;}
+    toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus();
+  });
+}
+
+// ===== DELETE STUDENT =====
+function askDelStu(id,name,bal) {
+  document.getElementById('del-title').textContent='🗑️ ลบนักเรียน';
+  document.getElementById('del-sub').textContent='ลบ "'+name+'" ออกจากระบบ?'+(bal>0?'\n⚠️ ยังมียอดออม '+fmt(bal)+' บาท':'');
+  hide('del-err');
+  document.getElementById('del-btn').onclick=function(){
+    apiCall({action:'deleteStudent',studentId:id,password:APW},function(r){
+      if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
+      toast('✓ ลบ '+name+' สำเร็จ','ok'); closeMo('del');
+      if(selStu&&selStu.id===id) selStu=null;
+      loadStus();
+    });
+  };
+  openMo('del');
+}
+
+// ===== EDIT TX =====
+function openEditTx(txId,type,amount,name) {
+  editTxId=txId;
+  document.getElementById('etx-sub').textContent=name+' · '+type+' '+fmt(amount)+' บาท';
+  document.getElementById('etx-amt').value=amount;
+  hide('etx-err'); openMo('etx');
+  setTimeout(function(){var e=document.getElementById('etx-amt');e.focus();e.select();},100);
+}
+function confirmEditTx() {
+  var amt=parseFloat(document.getElementById('etx-amt').value);
+  if (!amt||amt<=0) {showErr('etx','กรุณาใส่จำนวนเงิน'); return;}
+  apiCall({action:'editTransaction',txId:editTxId,amount:amt,password:TPW},function(r){
+    if (!r.ok) {showErr('etx',r.error); return;}
+    toast('✓ แก้ไขยอดสำเร็จ','ok'); closeMo('etx'); loadStus(); loadGradeTx();
+  });
+}
+
+// ===== DELETE TX =====
+function askDelTx(txId,type,amount,name,stuId) {
+  document.getElementById('del-title').textContent='🗑️ ลบรายการธุรกรรม';
+  document.getElementById('del-sub').textContent='ลบรายการ "'+type+' '+fmt(amount)+' บาท" ของ '+name+'?\nยอดเงินจะถูกปรับอัตโนมัติ';
+  hide('del-err');
+  document.getElementById('del-btn').onclick=function(){
+    apiCall({action:'deleteTransaction',txId:txId,password:TPW},function(r){
+      if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
+      toast('✓ ลบรายการสำเร็จ','ok'); closeMo('del'); loadStus(); loadGradeTx();
+    });
+  };
+  openMo('del');
+}
+
+// ===== ADMIN =====
+function loadAdmin() {
+  document.getElementById('admin-body').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  apiCall({action:'getAllSummary',password:APW},function(r){
+    if (!r.ok) {toast(r.error,'err'); return;}
+    adData=r; renderAdTab('ov');
+  });
+}
+function adTab(tab) {
+  curAdTab=tab;
+  ['ov','tx','pr','gd'].forEach(function(t){
+    document.getElementById('at-'+t).classList.toggle('on',t===tab);
+  });
+  renderAdTab(tab);
+}
+function renderAdTab(tab) {
+  var c=document.getElementById('admin-body');
+  if(tab==='ov') renderOv(c);
+  else if(tab==='tx') renderAdTx(c);
+  else if(tab==='pr') renderPr(c);
+  else if(tab==='gd') renderGd(c);
+}
+function renderOv(c) {
+  if (!adData) {c.innerHTML='<div class="load">⏳...</div>'; return;}
+  var html='<div class="grand"><div style="font-size:12px;color:var(--tws);margin-bottom:4px;font-family:\'Mitr\',sans-serif">ยอดออมรวมทั้งโรงเรียน</div>'+
+    '<div class="gv">'+fmt(adData.grandTotal)+' บาท</div>'+
+    '<div class="gs">นักเรียน '+adData.totalStudents+' คน · '+GRADES.length+' ชั้นเรียน</div></div>';
+  GRADES.forEach(function(g){
+    var d=adData.grades[g]||{students:[],totalBalance:0};
+    html+='<div class="ovblk"><div class="ovhd" onclick="toggleOv(\''+g.replace('.','_')+'\')">'+
+      '<div class="ovg">'+ICONS[g]+' ชั้น'+g+'</div>'+
+      '<div style="text-align:right"><div class="ovt">'+fmt(d.totalBalance)+' ฿</div>'+
+      '<div class="ovc">'+d.students.length+' คน</div></div></div>'+
+      '<div class="ovbd" id="ov-'+g.replace('.','_')+'">'+
+      (d.students.length ? d.students.map(function(s){
+        return '<div class="ovr"><span>'+esc(s.name)+'</span>'+
+          '<span style="font-weight:600;color:'+(s.balance>=0?'var(--ga)':'var(--red)')+'">'+fmt(s.balance)+' ฿</span></div>';
+      }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>')+
+      '</div></div>';
+  });
+  c.innerHTML=html;
+}
+function toggleOv(id) {var e=document.getElementById('ov-'+id); if(e) e.classList.toggle('on');}
+function renderAdTx(c) {
+  c.innerHTML='<div class="st" style="margin-bottom:10px"><span>ธุรกรรมล่าสุดทั้งโรงเรียน</span></div><div class="txl load" id="adtxl">⏳ กำลังโหลด...</div>';
+  apiCall({action:'getHistory',limit:40},function(r){
+    if(r.ok) renderTxList('adtxl',r.transactions);
+  });
+}
+function renderPr(c) {
+  var pgrid=GRADES.map(function(g){
+    return '<button class="pbtn" onclick="askPr(\''+g+'\')">'+ICONS[g]+'<br><b>'+g+'</b><br>→ '+NEXT[g]+'</button>';
+  }).join('');
+  c.innerHTML=
+    '<div class="ic"><div class="ic-t">🎓 เลื่อนชั้นรายชั้น</div>'+
+    '<div class="ic-d">กดปุ่มชั้นที่ต้องการ นักเรียนจะเลื่อนขึ้น ยอดเงินติดตามไปด้วย</div>'+
+    '<div class="pgrid">'+pgrid+'</div></div>'+
+    '<div class="ic"><div class="ic-t">⚡ เลื่อนชั้นทั้งโรงเรียน</div>'+
+    '<div class="ic-d">ใช้ตอนต้นปีการศึกษาใหม่ ทุกชั้นเลื่อนพร้อมกัน<br>นักเรียน ป.6 จะย้ายเป็น "จบการศึกษา" อัตโนมัติ</div>'+
+    '<button class="abtn" style="background:var(--sbux)" onclick="askPrAll()">⚡ เลื่อนชั้นทั้งโรงเรียน (ต้นปีการศึกษาใหม่)</button></div>';
+}
+function renderGd(c) {
+  c.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  apiCall({action:'getGraduated',password:APW},function(r){
+    if (!r.ok) {c.innerHTML='<div class="load">โหลดไม่ได้</div>'; return;}
+    if (!r.students.length) {
+      c.innerHTML='<div class="empty"><div style="font-size:36px;margin-bottom:8px">🎓</div><p>ยังไม่มีนักเรียนจบการศึกษา</p></div>'; return;
+    }
+    var tot=r.students.reduce(function(s,x){return s+x.balance;},0);
+    c.innerHTML='<div style="background:var(--gold-ll);border-radius:var(--cr);padding:1rem;text-align:center;margin-bottom:14px;border:1px solid var(--gold-l)">'+
+      '<div style="font-size:12px;color:var(--gold);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--sbux)">'+fmt(tot)+' บาท</div>'+
+      '<div style="font-size:12px;color:var(--ts)">'+r.students.length+' คน</div></div>'+
+      r.students.map(function(s){
+        return '<div class="grdc"><div><div class="grdn">'+esc(s.name)+'</div>'+
+          '<div class="grdm">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
+          '<div class="grdb">'+fmt(s.balance)+' ฿</div></div>';
+      }).join('');
+  });
+}
+
+// ===== PROMOTE =====
+function askPr(g) {
+  pendPr={type:'single',grade:g};
+  document.getElementById('pr-title').textContent='เลื่อนชั้น '+ICONS[g]+' '+g;
+  document.getElementById('pr-sub').textContent='นักเรียนทุกคนในชั้น '+g+' จะย้ายไป '+NEXT[g]+'\nยอดเงินสะสมติดตามไปด้วย';
+  hide('pr-err'); document.getElementById('pr-btn').onclick=doPr; openMo('pr');
+}
+function askPrAll() {
+  pendPr={type:'all'};
+  document.getElementById('pr-title').textContent='⚡ เลื่อนชั้นทั้งโรงเรียน';
+  document.getElementById('pr-sub').textContent='นักเรียนทุกชั้นเลื่อนขึ้นพร้อมกัน\nนักเรียน ป.6 → จบการศึกษา\n\nทำได้ปีละครั้ง ยืนยันใช่ไหม?';
+  hide('pr-err'); document.getElementById('pr-btn').onclick=doPr; openMo('pr');
+}
+function doPr() {
+  var params=pendPr.type==='all'?{action:'promoteAll',password:APW}:{action:'promoteGrade',password:APW,grade:pendPr.grade};
+  apiCall(params,function(r){
+    if (!r.ok) {document.getElementById('pr-err').textContent=r.error;document.getElementById('pr-err').style.display='block'; return;}
+    closeMo('pr');
+    toast(pendPr.type==='all'?'✓ เลื่อนชั้นทั้งโรงเรียนสำเร็จ!':'✓ เลื่อนชั้น '+pendPr.grade+' สำเร็จ ('+r.promoted+' คน)','ok');
+    pendPr=null; cache={}; loadAdmin();
+  });
+}
+
+// ===== PARENT =====
+function searchParent() {
+  var name=document.getElementById('parent-search').value.trim();
+  if (!name) {showParentErr('กรุณาใส่ชื่อก่อน'); return;}
+  document.getElementById('parent-err').style.display='none';
+  document.getElementById('parent-result').style.display='none';
+  document.getElementById('parent-loading').style.display='block';
+  apiCall({action:'getStudentByName',name:name},function(r){
+    document.getElementById('parent-loading').style.display='none';
+    if (!r.ok) {showParentErr(r.error); return;}
+    document.getElementById('parent-result').style.display='block';
+    if (r.students.length>1) {
+      document.getElementById('parent-multi').style.display='block';
+      document.getElementById('parent-single').style.display='none';
+      document.getElementById('parent-multi-list').innerHTML=r.students.map(function(s){
+        return '<div class="scard" onclick="selectParentStudent(\''+s.id+'\',\''+esc(s.name)+'\',\''+s.grade+'\','+s.balance+',[])">' +
+          '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
+          '<div style="flex:1"><div class="sname">'+esc(s.name)+'</div>'+
+          '<div class="smeta">ชั้น '+s.grade+'</div></div>'+
+          '<div class="sbal"><div class="sbv" style="color:var(--ga)">'+fmt(s.balance)+' ฿</div></div></div>';
+      }).join('');
+    } else {
+      document.getElementById('parent-multi').style.display='none';
+      showParentSingle(r.students[0],r.history||[]);
+    }
+  });
+}
+function selectParentStudent(id,name,grade,balance) {
+  document.getElementById('parent-multi').style.display='none';
+  apiCall({action:'getStudentByName',name:name},function(r){
+    if(r.ok&&r.students.length>0){
+      var stu=r.students.filter(function(s){return s.id===id;})[0]||r.students[0];
+      showParentSingle(stu,r.history||[]);
+    }
+  });
+}
+function showParentSingle(stu,history) {
+  document.getElementById('parent-single').style.display='block';
+  document.getElementById('ps-name').textContent=stu.name;
+  document.getElementById('ps-grade').textContent='ชั้น '+stu.grade;
+  document.getElementById('ps-balance').textContent=fmt(stu.balance);
+  var histEl=document.getElementById('parent-history');
+  if (!history||!history.length) {
+    histEl.innerHTML='<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>'; return;
+  }
+  histEl.innerHTML=history.map(function(t){
+    var isD=t.type==='ฝาก';
+    return '<div class="txi">'+
+      '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
+      '<div class="txi-info"><div class="txn">'+t.type+'</div>'+
+      '<div class="txd">'+fmtDate(t.date)+'</div></div>'+
+      '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+' ฿</div></div>';
+  }).join('');
+}
+function resetParent() {
+  document.getElementById('parent-search').value='';
+  document.getElementById('parent-result').style.display='none';
+  document.getElementById('parent-err').style.display='none';
+  document.getElementById('parent-single').style.display='none';
+  document.getElementById('parent-multi').style.display='none';
+  document.getElementById('parent-search').focus();
+}
+function showParentErr(msg) {
+  var el=document.getElementById('parent-err'); el.textContent='❌ '+msg; el.style.display='block';
+}
+
+// ===== MODAL HELPERS =====
+function openMo(id) {document.getElementById('mo-'+id).classList.add('on');}
+function closeMo(id) {document.getElementById('mo-'+id).classList.remove('on');}
+function showOk(id,msg) {var e=document.getElementById(id+'-ok');e.textContent=msg;e.style.display='block';hide(id+'-err');}
+function showErr(id,msg) {var e=document.getElementById(id+'-err');e.textContent=msg;e.style.display='block';hide(id+'-ok');}
+
 </script>
 </body>
 </html>
