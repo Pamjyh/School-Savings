@@ -949,8 +949,12 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
       </div>
       <div id="stu-pagination" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
       <div style="margin-top:16px">
-        <div class="st"><span>ประวัติล่าสุด</span></div>
-        <div class="txl" id="tx-grade"></div>
+        <div class="st">
+          <span>ประวัติทั้งหมด <span id="tx-grade-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
+        </div>
+        <div style="max-height:55vh;overflow-y:auto;border-radius:var(--cr);-webkit-overflow-scrolling:touch">
+          <div class="txl" id="tx-grade"></div>
+        </div>
       </div>
     </div>
 
@@ -1091,7 +1095,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbxX4m42RzYKuLoydzxa1mSGuLHr3QBGmR5kjEc4EuE2fAsrhalbF6hPIouSHeObvikTfw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbyue5j1F1_KODwRn0URsTHvVIxh5TYFVIFiocz9xb8Y-C7qn9Q_NpVcPhBM1dBbS5BCuQ/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -1295,8 +1299,12 @@ function pickStu(id) {
 function loadGradeTx() {
   var el=document.getElementById('tx-grade');
   el.innerHTML='<div class="load">⏳...</div>';
-  apiCall({action:'getHistory',grade:curGrade,limit:10},function(r){
-    if (r.ok) renderTxList('tx-grade',r.transactions);
+  apiCall({action:'getHistory',grade:curGrade,limit:1000},function(r){
+    if (r.ok) {
+      var cnt=document.getElementById('tx-grade-cnt');
+      if(cnt) cnt.textContent=r.transactions.length?'('+r.transactions.length+' รายการ)':'';
+      renderTxList('tx-grade',r.transactions);
+    }
   });
 }
 
