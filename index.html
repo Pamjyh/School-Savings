@@ -1096,7 +1096,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbyZ4SE6Mu7xwP8aso4fVLVZNibyVcowu-VZPKa0iuGudEn5zcuMXtHDhczNHBKqixwgXQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxF9I0YoYZC1zOXFhG-nxy2Wfdgn5pdn1EA1EcuPQO025YvDVXBKLSqVjMGghQw05ZBgQ/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -1714,7 +1714,8 @@ function confirmTx() {
       var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
       showErr('tx',r.error||'เกิดข้อผิดพลาด'); return;
     }
-    showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท');
+    var dbg = r.debug ? ' [debug: rows '+r.debug.rowsBefore+'→'+r.debug.rowsAfter+' wrote='+r.debug.wrote+']' : '';
+    showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท'+dbg);
     var s=allStus.filter(function(x){return x.id===selStu.id;})[0];
     if(s){s.balance=r.newBalance; selStu.balance=r.newBalance;}
     renderStus(); renderStats(); loadGradeTx();
