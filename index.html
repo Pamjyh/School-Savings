@@ -815,6 +815,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="lg-err" id="lerr">❌ รหัสผ่านไม่ถูกต้อง</div>
     <div class="lg-hint">กรุณาติดต่อผู้ดูแลระบบเพื่อขอรหัสผ่าน</div>
   </div>
+  <div id="api-status" style="margin-top:12px;padding:10px 16px;border-radius:12px;font-size:12px;text-align:center;background:rgba(255,255,255,0.15);color:#fff;min-width:220px">🔄 กำลังตรวจสอบการเชื่อมต่อ...</div>
   <div class="lg-divider">หรือ</div>
   <button class="lg-parent-btn" style="margin-bottom:8px" onclick="openManual()">📖 คู่มือการใช้งาน</button>
   <button class="lg-parent-btn" onclick="go('parent')">
@@ -1209,10 +1210,14 @@ function renderGrades() {
   GRADES.forEach(function(g){
     if (cache[g]) return;
     apiCall({action:'getStudents',grade:g},function(r){
-      if (r.ok) cache[g]=r.students||[];
       var el2=document.getElementById('gci-'+g.replace('.','_'));
       if (!el2) return;
-      var list2=cache[g]||[];
+      if (!r.ok) {
+        el2.innerHTML='<span style="color:#c0392b;font-size:11px">⚠️ '+(r.error||'โหลดไม่ได้')+'</span>';
+        return;
+      }
+      cache[g]=r.students||[];
+      var list2=cache[g];
       var tot2=list2.reduce(function(s,x){return s+x.balance;},0);
       el2.innerHTML=list2.length ? list2.length+' คน · <b style="color:var(--ga)">'+fmt(tot2)+' ฿</b>' : 'ยังไม่มีนักเรียน';
     });
@@ -1236,7 +1241,16 @@ function loadStus() {
   document.getElementById('stu-list').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
   var se=document.getElementById('stu-search'); if(se) se.value='';
   apiCall({action:'getStudents',grade:curGrade},function(r){
-    if (!r.ok) {toast(r.error,'err'); return;}
+    if (!r.ok) {
+      document.getElementById('stu-list').innerHTML=
+        '<div style="padding:20px;text-align:center;color:#c0392b">'+
+        '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
+        '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่ได้</div>'+
+        '<div style="font-size:12px;color:#666;word-break:break-all">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
+        '<button onclick="loadStus()" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
+        '</div>';
+      return;
+    }
     allStus=r.students||[];
     filteredStus=allStus;
     cache[curGrade]=allStus;
@@ -2118,6 +2132,22 @@ function openMo(id) {document.getElementById('mo-'+id).classList.add('on');}
 function closeMo(id) {document.getElementById('mo-'+id).classList.remove('on');}
 function showOk(id,msg) {var e=document.getElementById(id+'-ok');e.textContent=msg;e.style.display='block';hide(id+'-err');}
 function showErr(id,msg) {var e=document.getElementById(id+'-err');e.textContent=msg;e.style.display='block';hide(id+'-ok');}
+
+// ===== API DIAGNOSTIC (รันตอนเปิดหน้า) =====
+(function checkApiOnLoad(){
+  var el=document.getElementById('api-status');
+  if(!el) return;
+  apiCall({action:'getStudents',grade:'ป.1'},function(r){
+    if(r.ok){
+      el.style.background='rgba(0,117,74,0.8)';
+      el.textContent='✅ เชื่อมต่อสำเร็จ · พบนักเรียน ป.1 จำนวน '+(r.students||[]).length+' คน';
+    } else {
+      el.style.background='rgba(192,57,43,0.9)';
+      el.style.color='#fff';
+      el.innerHTML='❌ เชื่อมต่อไม่ได้<br><span style="font-size:11px;opacity:.9">'+(r.error||'ไม่ทราบสาเหตุ')+'</span>';
+    }
+  });
+})();
 
 </script>
 </body>
