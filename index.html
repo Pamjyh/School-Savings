@@ -1095,7 +1095,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbwBjuLeXQnNNzosTMq87fESYWOsKYhAFAE0Hn1TMFjf4v9BYo90ZM0srJ1GjoWLZw4Kfg/exec';
+var API = 'https://script.google.com/macros/s/AKfycbz_4TvniGmDUwtEhVdK-u6KF3C3ui1BeC9-eOCh5xW7nb61dGO288RQtWfQlFpBSn7GzA/exec';
 var TPW = '61010097';
 var APW = 'admin61010097';
 // ==================
@@ -1149,9 +1149,19 @@ function apiCall(params,cb) {
   var url = API+'?'+Object.keys(params).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
-  fetch(url).then(function(r){return r.json();}).then(cb).catch(function(e){
-    cb({ok:false,error:'เชื่อมต่อไม่ได้: '+e.message});
-  });
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var tid  = ctrl ? setTimeout(function(){ ctrl.abort(); }, 20000) : null;
+  fetch(url, ctrl ? {signal: ctrl.signal} : {})
+    .then(function(r){ if(tid) clearTimeout(tid); return r.text(); })
+    .then(function(txt){
+      try { cb(JSON.parse(txt)); }
+      catch(e){ cb({ok:false,error:'ข้อมูลผิดรูปแบบจากเซิร์ฟเวอร์: '+txt.substring(0,120)}); }
+    })
+    .catch(function(e){
+      if(tid) clearTimeout(tid);
+      var msg = (e.name==='AbortError') ? 'เชื่อมต่อหมดเวลา (20 วินาที) — ตรวจสอบ Apps Script URL' : 'เชื่อมต่อไม่ได้: '+e.message;
+      cb({ok:false,error:msg});
+    });
 }
 
 // ===== NAV =====
@@ -1678,12 +1688,17 @@ function previewWithdraw() {
 function confirmTx() {
   var amt=parseFloat(document.getElementById('tx-amt').value);
   if (!amt||amt<=0) {showErr('tx','กรุณาใส่จำนวนเงิน'); return;}
+  var btn=document.getElementById('tx-confirm');
+  var origText=btn.textContent;
+  btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  hide('tx-ok'); hide('tx-err');
   var action=txMode==='dep'?'deposit':'withdraw';
   apiCall({action:action,studentId:selStu.id,amount:amt,password:TPW},function(r){
+    btn.disabled=false; btn.textContent=origText;
     if (!r.ok) {
       document.getElementById('tx-amt').disabled=false;
       var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
-      showErr('tx',r.error); return;
+      showErr('tx',r.error||'เกิดข้อผิดพลาด'); return;
     }
     showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท');
     var s=allStus.filter(function(x){return x.id===selStu.id;})[0];
