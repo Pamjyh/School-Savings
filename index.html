@@ -74,8 +74,8 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .scard:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);border-color:var(--gl)}.scard.sel{border-color:var(--ga);box-shadow:0 0 0 2px var(--ga)}
 .savt{width:38px;height:38px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
 .sname{font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td)}
-.smeta{font-size:11px;color:var(--ts)}
-.sbal{text-align:right;flex-shrink:0}.sbv{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux)}.sbl{font-size:10px;color:var(--ts)}
+.smeta{font-size:13px;color:var(--ts)}
+.sbal{text-align:right;flex-shrink:0}.sbv{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux)}.sbl{font-size:12px;color:var(--ts)}
 .ebtn{background:none;border:1px solid var(--ibdr);border-radius:var(--br);padding:4px 10px;font-size:11px;color:var(--ts);cursor:pointer;flex-shrink:0;font-family:'Sarabun',sans-serif;transition:all 0.2s}
 .ebtn:hover{border-color:var(--ga);color:var(--ga)}.ebtn:active{transform:scale(var(--bs))}
 .ebtn.del{color:var(--red);border-color:rgba(200,32,20,0.3)}.ebtn.del:hover{background:var(--red);color:#fff;border-color:var(--red)}
@@ -108,7 +108,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .ovr{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--ceramic);font-size:13px}.ovr:last-child{border-bottom:none}
 
 .atabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--hg);border-top:1px solid var(--gu);flex-shrink:0}
-.atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:10px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-top:2px solid transparent}
+.atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-top:2px solid transparent}
 .atab.on{color:var(--tw);border-top-color:var(--ga)}.atab:hover{color:var(--tw)}
 
 .ic{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);padding:1rem;margin-bottom:10px;box-shadow:var(--cs)}
@@ -161,13 +161,8 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 }
 
 /* ===== MANUAL STYLES ===== */
-.mo-manual 
+.mo-manual,
 .mo-manual *{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --hg:#1E3932;--ga:#00754A;--sbux:#006241;
-  --warm:#f2f0eb;--gl:#d4e9e2;--gold:#cba258;
-  --red:#c82014;--white:#fff;--ceramic:#edebe9;
-}
 .mo-manual-body{font-family:'Sarabun',sans-serif;background:var(--warm);color:#1a1a1a;line-height:1.6;letter-spacing:-0.01em}
 
 /* ====== COVER ====== */
@@ -269,8 +264,8 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .mo-manual .footer .url{color:rgba(255,255,255,.8);font-weight:600;font-size:14px;margin-top:.5rem}
 
 @media(max-width:500px){
-  .who-cards{grid-template-columns:1fr}
-  .cover h1{font-size:24px}
+  .mo-manual .who-cards{grid-template-columns:1fr}
+  .mo-manual .cover h1{font-size:24px}
 }
 @media print{
   .cover{min-height:auto;padding:2rem}
@@ -811,7 +806,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
   <div class="lg-card">
     <label>รหัสผ่านสำหรับครู / ผู้ดูแล</label>
     <input type="password" class="lg-inp" id="lpw" placeholder="ใส่รหัสผ่าน" onkeydown="if(event.key==='Enter')login()">
-    <button class="lg-btn" onclick="login()">เข้าสู่ระบบ</button>
+    <button class="lg-btn" id="lbtn" onclick="login()">เข้าสู่ระบบ</button>
     <div class="lg-err" id="lerr">❌ รหัสผ่านไม่ถูกต้อง</div>
     <div class="lg-hint">กรุณาติดต่อผู้ดูแลระบบเพื่อขอรหัสผ่าน</div>
   </div>
@@ -1096,9 +1091,9 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbxjDwhi5-3Njl5B9bLL5x9O-V3isLSPRroMGE-GppHF2HpgE6UlDE5tukRbZTj8xSGv0A/exec';
-var TPW = '61010097';
-var APW = 'admin61010097';
+var API = 'https://script.google.com/macros/s/AKfycbzjDEIzw8sAm3NDeJkTb6ReojWrFuqZeBDOgitaU_45BWL-iXZFpIL0haDdM3-kveWghQ/exec';
+// รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
+var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
 
 var GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
@@ -1135,7 +1130,7 @@ function fmtDate(v) {
   return s;
 }
 function fmt(n) { return Number(n||0).toLocaleString('th-TH'); }
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
 function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
 function toast(msg,type) {
   var t=document.createElement('div');
@@ -1174,18 +1169,34 @@ function go(pg) {
 
 // ===== AUTH =====
 function login() {
-  var pw=document.getElementById('lpw').value;
-  var err=document.getElementById('lerr');
-  if (pw===APW) {
-    role='admin'; err.style.display='none';
-    go('admin'); loadAdmin();
-  } else if (pw===TPW) {
-    role='teacher'; err.style.display='none';
-    renderGrades(); go('grades');
-  } else {
-    err.style.display='block';
-    document.getElementById('lpw').select();
+  var pw  = document.getElementById('lpw').value.trim();
+  var err = document.getElementById('lerr');
+  var btn = document.getElementById('lbtn');
+  if (!pw) {
+    err.textContent = 'กรุณาใส่รหัสผ่าน';
+    err.style.display = 'block';
+    return;
   }
+  // ปิดปุ่มระหว่างรอ server
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังตรวจสอบ…';
+
+  apiCall({action:'checkRole', password:pw}, function(r) {
+    btn.disabled = false;
+    btn.textContent = 'เข้าสู่ระบบ';
+    if (!r.ok) {
+      err.textContent = 'รหัสผ่านไม่ถูกต้อง';
+      err.style.display = 'block';
+      document.getElementById('lpw').select();
+      return;
+    }
+    _pw  = pw;   // เก็บใน memory เท่านั้น ไม่เก็บใน source
+    role = r.role;
+    err.style.display = 'none';
+    if (role === 'admin') { go('admin'); loadAdmin(); }
+    else { renderGrades(); go('grades'); }
+  });
 }
 function logout() {
   role=null; curGrade=null; selStu=null; stus=[]; cache={}; allStus=[]; filteredStus=[];
@@ -1291,7 +1302,7 @@ function renderStus() {
       '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
       '<div class="sbl">สะสม</div></div>'+
       '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\')">✏️</button>'+
-      '<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>'+
+      (role==='admin'?'<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>':'')+
       '</div>';
   }).join('');
   if (total<=1) {pgEl.style.display='none'; return;}
@@ -1648,7 +1659,7 @@ function submitBulk() {
       return;
     }
     btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
-    apiCall({action:'deposit',studentId:items[i].s.id,amount:items[i].amt,password:TPW},function(r){
+    apiCall({action:'deposit',studentId:items[i].s.id,amount:items[i].amt,password:_pw},function(r){
       if(r.ok) ok++; else fail.push(items[i].s.name);
       setTimeout(function(){sendNext(i+1);},200);
     });
@@ -1707,7 +1718,7 @@ function confirmTx() {
   btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
   hide('tx-ok'); hide('tx-err');
   var action=txMode==='dep'?'deposit':'withdraw';
-  apiCall({action:action,studentId:selStu.id,amount:amt,password:TPW},function(r){
+  apiCall({action:action,studentId:selStu.id,amount:amt,password:_pw},function(r){
     btn.disabled=false; btn.textContent=origText;
     if (!r.ok) {
       document.getElementById('tx-amt').disabled=false;
@@ -1762,7 +1773,7 @@ function confirmAdd() {
       return;
     }
     btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
-    apiCall({action:'addStudent',name:items[i].name,bankAccount:items[i].bank,grade:curGrade,password:TPW},function(r){
+    apiCall({action:'addStudent',name:items[i].name,bankAccount:items[i].bank,grade:curGrade,password:_pw},function(r){
       if(r.ok) ok++; else fail.push(items[i].name);
       setTimeout(function(){sendNext(i+1);},300);
     });
@@ -1782,7 +1793,7 @@ function confirmEdit() {
   var name=document.getElementById('edit-name').value.trim();
   var bank=document.getElementById('edit-bank').value.trim();
   if (!name) {showErr('edit','กรุณาใส่ชื่อ'); return;}
-  apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,password:TPW},function(r){
+  apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,password:_pw},function(r){
     if (!r.ok) {showErr('edit',r.error); return;}
     toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus();
   });
@@ -1794,7 +1805,7 @@ function askDelStu(id,name,bal) {
   document.getElementById('del-sub').textContent='ลบ "'+name+'" ออกจากระบบ?'+(bal>0?'\n⚠️ ยังมียอดออม '+fmt(bal)+' บาท':'');
   hide('del-err');
   document.getElementById('del-btn').onclick=function(){
-    apiCall({action:'deleteStudent',studentId:id,password:APW},function(r){
+    apiCall({action:'deleteStudent',studentId:id,password:_pw},function(r){
       if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
       toast('✓ ลบ '+name+' สำเร็จ','ok'); closeMo('del');
       if(selStu&&selStu.id===id) selStu=null;
@@ -1815,7 +1826,7 @@ function openEditTx(txId,type,amount,name) {
 function confirmEditTx() {
   var amt=parseFloat(document.getElementById('etx-amt').value);
   if (!amt||amt<=0) {showErr('etx','กรุณาใส่จำนวนเงิน'); return;}
-  apiCall({action:'editTransaction',txId:editTxId,amount:amt,password:TPW},function(r){
+  apiCall({action:'editTransaction',txId:editTxId,amount:amt,password:_pw},function(r){
     if (!r.ok) {showErr('etx',r.error); return;}
     toast('✓ แก้ไขยอดสำเร็จ','ok'); closeMo('etx'); loadStus(); loadGradeTx();
   });
@@ -1827,7 +1838,7 @@ function askDelTx(txId,type,amount,name,stuId) {
   document.getElementById('del-sub').textContent='ลบรายการ "'+type+' '+fmt(amount)+' บาท" ของ '+name+'?\nยอดเงินจะถูกปรับอัตโนมัติ';
   hide('del-err');
   document.getElementById('del-btn').onclick=function(){
-    apiCall({action:'deleteTransaction',txId:txId,password:TPW},function(r){
+    apiCall({action:'deleteTransaction',txId:txId,password:_pw},function(r){
       if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
       toast('✓ ลบรายการสำเร็จ','ok'); closeMo('del'); loadStus(); loadGradeTx();
     });
@@ -1838,7 +1849,7 @@ function askDelTx(txId,type,amount,name,stuId) {
 // ===== ADMIN =====
 function loadAdmin() {
   document.getElementById('admin-body').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({action:'getAllSummary',password:APW},function(r){
+  apiCall({action:'getAllSummary',password:_pw},function(r){
     if (!r.ok) {toast(r.error,'err'); return;}
     adData=r; renderAdTab('ov');
   });
@@ -2014,7 +2025,7 @@ function renderPr(c) {
 }
 function renderGd(c) {
   c.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({action:'getGraduated',password:APW},function(r){
+  apiCall({action:'getGraduated',password:_pw},function(r){
     if (!r.ok) {c.innerHTML='<div class="load">โหลดไม่ได้</div>'; return;}
     if (!r.students.length) {
       c.innerHTML='<div class="empty"><div style="font-size:36px;margin-bottom:8px">🎓</div><p>ยังไม่มีนักเรียนจบการศึกษา</p></div>'; return;
@@ -2046,7 +2057,7 @@ function askPrAll() {
   hide('pr-err'); document.getElementById('pr-btn').onclick=doPr; openMo('pr');
 }
 function doPr() {
-  var params=pendPr.type==='all'?{action:'promoteAll',password:APW}:{action:'promoteGrade',password:APW,grade:pendPr.grade};
+  var params=pendPr.type==='all'?{action:'promoteAll',password:_pw}:{action:'promoteGrade',password:_pw,grade:pendPr.grade};
   apiCall(params,function(r){
     if (!r.ok) {document.getElementById('pr-err').textContent=r.error;document.getElementById('pr-err').style.display='block'; return;}
     closeMo('pr');
